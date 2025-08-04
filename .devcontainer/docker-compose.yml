@@ -1,0 +1,9 @@
+services:
+  python-dev:
+    build:
+      context: ../
+      dockerfile: Dockerfile  # Optional if your file is named "Dockerfile"
+    #image: mcr.microsoft.com/devcontainers/python:1-3.12-bullseye
+    volumes: 
+      - ../..:/workspaces:cached
+    command: sleep infinity

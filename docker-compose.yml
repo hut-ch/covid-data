@@ -1,6 +1,6 @@
 services:
-  python-service:
-    container_name: python
+  python-dev:
+    container_name: python-dev
     build:
       context: .
       dockerfile: Dockerfile  # Optional if your file is named "Dockerfile"
@@ -9,7 +9,7 @@ services:
     ports:
       - "1234:1234"  # optional, map host:container ports
     volumes:
-      - .:/covid-data       # optional, bind mount current dir
+      - .:/pipelines       # optional, bind mount current dir
     #environment:
     #  - ENV_VAR_NAME=value  # optional env variables
   
