@@ -1,5 +1,5 @@
 # Use the official Python 3.13.5 image based on Debian Bookworm
-FROM python:3.13.5-bookworm
+FROM python:3.13.5-slim-bookworm
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
