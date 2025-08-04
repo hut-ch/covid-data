@@ -11,7 +11,9 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Copy the rest of your app code (optional here)
-# COPY . .
+RUN mkdir /covid-data
+#COPY /src /covid-data
+WORKDIR /covid-data
 
 # Set default command
 CMD ["bash"]
