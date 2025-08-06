@@ -25,3 +25,16 @@ def process_all_data():
 
 if __name__ == "__main__":
     process_all_data()
+
+
+
+# try this to see if it prints a function
+# print(process_uk_data)
+# or 
+# print(process_uk_data.to_string())
+# or
+# print(repr(process_uk_data))
+# or
+# __string()__
+
+# could crete the enpoints as a class and use that maybe
