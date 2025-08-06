@@ -1,40 +1,24 @@
 import os
-from dotenv import load_dotenv
 import requests
 import json
-
-BASE_URL = 'https://opendata.ecdc.europa.eu/covid19/'
-
-ENDPOINTS = [
-    'COVID-19_VC_data_from_September_2023/json/data_v7.json',
-    'vaccine_tracker/json/',
-    'movementindicators/json/',
-    'movementindicatorsarchive/json/data.json',
-    'nationalcasedeath/json/',
-    'nationalcasedeath_archive/json/',
-    'nationalcasedeath_eueea_daily_ei/json/'
-]
+from pipeline_utils import eu_config, uk_config
 
 def get_save_dir():
     """Get target directory from env file"""
-    try:
-        load_dotenv('project.env')   
-    except FileNotFoundError as e:
-        print(f"project.env not found - {e}" )
-        raise e
+    return os.getenv('raw-folder')
 
-    file_dir = os.getenv('download_folder')
-    return file_dir
 
 def ensure_save_dir(path: str):
     """Ensure target directory exists."""
     os.makedirs(path, exist_ok=True)
+
 
 def get_filename_from_endpoint(endpoint: str) -> str:
     """Convert endpoint to a clean filename."""
     base_part = endpoint.strip('/').split('/')[0]
     filename = base_part.replace('_', '-').lower() + '.json'
     return 
+
 
 def fetch_json(url: str):
     """Fetch and validate JSON from a URL."""
@@ -48,6 +32,7 @@ def fetch_json(url: str):
         print(f"Invalid JSON at {url}: {e}")
     return None
 
+
 def save_json_to_file(data, filepath: str):
     """Save JSON data to file with formatting."""
     try:
@@ -57,23 +42,25 @@ def save_json_to_file(data, filepath: str):
     except IOError as e:
         print(f"Failed to write to {filepath}: {e}")
 
-def process_endpoints(endpoints, base_url):
+
+def process_endpoints(extract_config: list):
     """Main loop to fetch and save all endpoints."""
-    save_dir = get_save_dir()
-    ensure_save_dir(save_dir)
+    for extract in extract_config:
+        
+        base_url = extract[0]
+        endpoints = extract[1]
+        save_dir = endpoint[2]
+        
+        root_dir = get_save_dir()
+        ensure_save_dir(save_dir)
 
-    for endpoint in endpoints:
-        url = f"{base_url}{endpoint}"
-        filename = get_filename_from_endpoint(endpoint)
-        filepath = os.path.join(save_dir, filename)
+        for endpoint in endpoints:
+            url = f"{base_url}{endpoint}"
+            filename = get_filename_from_endpoint(endpoint)
+            filepath = os.path.join(root_dir, save_dir, filename)
 
-        print(f"\nFetching: {url}")
-        data = fetch_json(url)
+            print(f"\nFetching: {url} and saving to {filepath}")
+            data = fetch_json(url)
 
-        if data is not None:
-            save_json_to_file(data, filepath)
-
-# Run the script
-if __name__ == "__main__":
-    process_endpoints(ENDPOINTS, BASE_URL)
-    
+            if data is not None:
+                save_json_to_file(data, filepath)
