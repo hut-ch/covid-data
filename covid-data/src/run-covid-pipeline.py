@@ -1,6 +1,7 @@
 # runs the main pipeling to extract codiv daat fro uk and eu sources if it doesnt already exist and tranfrom the data ready to be stored in final format
-from pipeline_utils import get_details, get_env_config
+from pipeline.utils import get_details, get_env_config
 from pipeline import extract
+
 def setup_values():
     # setup environment and extract details
     get_env_config('covid-data.env')
