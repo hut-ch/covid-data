@@ -1,31 +1,31 @@
 # runs the main pipeling to extract codiv daat fro uk and eu sources if it doesnt already exist and tranfrom the data ready to be stored in final format
-from pipeline_utils import credentials
+from pipeline_utils import get_details, get_env_config
 from pipeline import extract
-
 def setup_values():
     # setup environment and extract details
-    credentials.get_env_config('covid-data.env')
+    get_env_config('covid-data.env')
+    return 
 
 
 def process_uk_data():
-    endpoints = credentials.get_details('uk')
-    print(endpoints)
-    #extract(endpoints)
+    endpoints = get_details('uk')
+    extract.process_endpoints(endpoints)
 
 
 def process_eu_data():
-    endpoints = credentials.get_details('eu')
-    #extract(endpoints)
-    print(endpoints)
+    endpoints = get_details('eu')
+    extract.process_endpoints(endpoints)
+    
 
 
 def process_all_data():
-    process_uk_data()
-    process_eu_data()    
+    endpoints = get_details('all')
+    extract.process_endpoints(endpoints)  
+
 
 if __name__ == "__main__":
+    setup_values()
     process_all_data()
-
 
 
 # try this to see if it prints a function
