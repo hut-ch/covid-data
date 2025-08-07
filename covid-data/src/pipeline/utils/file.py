@@ -29,3 +29,6 @@ def unzip_files(filepath: str):
             #    Print(f"Error extracting zip file {zip_file}")
     else:
         print("no zip files found")
+
+def check_for_files(filelist):
+    zip_files = [f for f in os.listdir(filepath) if os.path.isfile(os.path.join(filepath, f))]

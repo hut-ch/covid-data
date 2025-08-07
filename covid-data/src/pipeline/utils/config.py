@@ -15,13 +15,13 @@ def get_eu_details():
     base_url = 'https://opendata.ecdc.europa.eu/covid19/'
 
     endpoints = [
-        #'COVID-19_VC_data_from_September_2023/json/data_v7.json',
-        #'vaccine_tracker/json/',
-        #'movementindicators/json/',
-        #'movementindicatorsarchive/json/data.json',
-        #'nationalcasedeath/json/',
-        #'nationalcasedeath_archive/json/',
-        #'nationalcasedeath_eueea_daily_ei/json/'
+        'COVID-19_VC_data_from_September_2023/json/data_v7.json',
+        'vaccine_tracker/json/',
+        'movementindicators/json/',
+        'movementindicatorsarchive/json/data.json',
+        'nationalcasedeath/json/',
+        'nationalcasedeath_archive/json/',
+        'nationalcasedeath_eueea_daily_ei/json/'
     ]
 
     location = 'eu'
@@ -32,11 +32,11 @@ def get_uk_details():
     base_url = 'https://archive.ukhsa-dashboard.data.gov.uk/coronavirus-dashboard/'
 
     endpoints = [
-        #'cases.zip',
-        #'deaths.zip',
+        'cases.zip',
+        'deaths.zip',
         'healthcare.zip',
-        #'testing.zip',
-        #'vaccinations.zip'
+        'testing.zip',
+        'vaccinations.zip'
     ]
 
     location = 'uk'
