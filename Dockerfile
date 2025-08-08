@@ -12,8 +12,8 @@ RUN apt-get update && apt-get install -y build-essential && rm -rf /var/lib/apt/
 # Create a custom user with UID 1234 and GID 1234
 RUN groupadd -g 1234 pygroup && \
     useradd -m -u 1234 -g pygroup pyuser
- 
-    
+
+
 # Copy dependency list
 COPY requirements.txt .
 
@@ -23,9 +23,11 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Switch to the custom user
 USER pyuser
- 
+
 # Set the workdir
 WORKDIR /home/pyuser
+
+ENV PATH="/home/pyuser/.local/bin:$PATH"
 
 # Copy the rest of your app code (optional here)
 # COPY . .
