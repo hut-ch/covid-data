@@ -33,7 +33,7 @@
 
 	// Use 'postCreateCommand' to run commands after the container is created.
 	 "postCreateCommand": "pip install --upgrade pip && pip install -r requirements-dev.txt",
-	 "postAttachCommand": "pre-commit install",
+	 "postAttachCommand": "pre-commit install && pre-commit autoupdate",
 	// Configure tool-specific properties.
 	 "customizations": {
 		"vscode": {

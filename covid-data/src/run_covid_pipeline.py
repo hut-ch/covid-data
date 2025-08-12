@@ -1,9 +1,9 @@
-""" runs the main pipeline to extract covid data for uk and eu
+"""runs the main pipeline to extract covid data for uk and eu
 sources if it doesn't already exist and tranforms the data
-ready to be stored in final format """
+ready to be stored in final format"""
 
-import pipeline.eu.transform as eu_transform
 from pipeline import extract
+from pipeline.eu import transform_movement_indicators as mi
 from pipeline.utils import get_details, get_set_config
 
 
@@ -25,10 +25,10 @@ def process_eu_data():
 
 
 def process_all_data():
-    """run all region covid data pipelins"""
+    """run all region covid data pipelines"""
     endpoints = get_details("all")
     extract.process_endpoints(endpoints)
-    eu_transform.movement_indicators()
+    mi.transform()
 
 
 if __name__ == "__main__":

@@ -22,13 +22,21 @@ def get_eu_details():
     and retun as a list"""
     base_url = "https://opendata.ecdc.europa.eu/covid19/"
     endpoints = [
-        "COVID-19_VC_data_from_September_2023/json/data_v7.json",
+        "agecasesnational/json/",
+        "COVID-19_VC_data_from_May_2024/json/data_v7.json",
+        "hospitalicuadmissionrates/json/",
         "vaccine_tracker/json/",
         "movementindicators/json/",
         "movementindicatorsarchive/json/data.json",
+        "movementindicatorsarchive2022/json/data.json",
         "nationalcasedeath/json/",
         "nationalcasedeath_archive/json/",
         "nationalcasedeath_eueea_daily_ei/json/",
+        "subnationalcasedaily/json/",
+        "subnationalcaseweekly/json/",
+        "testing/json",
+        "virusvariant/json/",
+        "json/data.json",
     ]
     location = "eu"
 

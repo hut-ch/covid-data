@@ -13,7 +13,10 @@ def get_filename_from_endpoint(endpoint: str) -> str:
     """Convert endpoint to a clean filename."""
     base_part = endpoint.strip("/").split("/")[0]
     filename = base_part.replace("_", "-").lower()
-    if "." not in filename:
+    # override for specific file
+    if endpoint == "json/data.json":
+        filename = "colour-key.json"
+    elif "." not in filename:
         filename += ".json"
 
     return filename
