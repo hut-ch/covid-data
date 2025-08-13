@@ -36,7 +36,9 @@ RUN groupadd -g 1234 pygroup && \
 COPY requirements.txt .
 
 # Upgrade pip and install dependencies
-RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt \
+    && rm -rf /root/.cahee/pip
 
 
 # Switch to the custom user
