@@ -1,7 +1,8 @@
 """main transformation for National DEaths EU data"""
 
 import pandas as pd
-from pipeline.utils import file_check, get_dir
+
+from utils import file_check, get_dir
 
 
 def national_deaths():

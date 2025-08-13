@@ -1,6 +1,6 @@
 """Main transformation for Vaccine Tracker EU data"""
 
-from pipeline.utils import file_check, get_dir
+from utils import file_check, get_dir
 
 
 def vaccine_tracker():

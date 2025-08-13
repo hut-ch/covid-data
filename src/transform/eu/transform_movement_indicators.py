@@ -1,8 +1,11 @@
-"""Main Transformation for Movement Indicators EU data"""
+"""
+Main Transformation for Movement Indicators EU data
+"""
 
 import pandas as pd
-from pipeline.utils import (check_columns_exist, combine_data, create_dir,
-                            file_check, get_dir, get_file, get_unique_data)
+
+from utils import (check_columns_exist, combine_data, create_dir, file_check,
+                   get_dir, get_file, get_unique_data)
 
 
 def import_standard(file_path: str, file: str) -> pd.DataFrame:
@@ -53,7 +56,9 @@ def import_other(file_path: str, file: str) -> pd.DataFrame:
     """
     file = get_file(file_path, file)
     data = pd.read_json(file)
-    data.columns = data.columns.str.replace("subnational_", "regional_", regex=True)
+    data.columns = data.columns.str.replace(
+        "subnational_", "regional_", regex=True
+    )  # how long is this line iiiiiii
 
     data.rename(
         columns={

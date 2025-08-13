@@ -11,7 +11,7 @@
 
 	// The 'service' property is the name of the service for the container that VS Code should
 	// use. Update this value and .devcontainer/docker-compose.yml to the real service name.
-	"service": "python-dev",
+	"service": "python",
 
 	// The optional 'workspaceFolder' property is the path VS Code should open by default when
 	// connected. This is typically a file mount in .devcontainer/docker-compose.yml
@@ -32,20 +32,59 @@
 	// "shutdownAction": "none",
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	 "postCreateCommand": "pip install --upgrade pip && pip install -r requirements-dev.txt",
 	 "postAttachCommand": "pre-commit install && pre-commit autoupdate",
+	 
 	// Configure tool-specific properties.
 	 "customizations": {
 		"vscode": {
 			"extensions": [
 				"ms-python.python",
 				"ms-python.flake8",
+				"ms-python.mypy-type-checker",
+				"ms-python.pylint",
+				"ms-python.black-formatter",
+				"ms-python.isort",
+				"mikoz.composite-formatter",
 				"mechatroner.rainbow-csv",
 				"gerda.vscode-parquet-viewer"
-			]
-		}
-	 }
+			],
+			"settings": {
+				"[python]": {
+					"python.formatting.provider": "mikoz.composite-formatter",
+					"editor.formatOnSave": true
+					//"editor.codeActionsOnSave": {
+					//	"source.organizeImports": "explicit"
+					//}
+				},
+				"composite-formatter.formatters": [
+					"ms-python.python",
+					"ms-python.black-formatter",
+					"ms-python.isort"
+				],
 
+				"composite-formatter.language":"python",
+				//black formatter settings
+				"black-formatter.args": [
+					"--line-length=88"
+				],
+				//isort formatter settings
+				"isort.args": [
+					"--profile=composite-formatter",
+					"--skip=.gitignore,.dockerignore,.devcontainer/",
+					"--line-length=88"
+				],
+				//mypy linter settings
+				"mypy-type-checker.importStrategy":"fromEnvironment",
+				//flake* linter settings
+				"flake8.args": [
+					"--line-length=88"
+				],
+				//"pylint.importStrategy": "fromEnvironment",
+				"pylint.args": ["--max-line-length=88"],
+				"pylint.cwd": "${workspaceFolder}/src"
+			}
+		}
+	 },
 	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
-	// "remoteUser": "devcontainer"
+	 "remoteUser": "pyuser"
 }

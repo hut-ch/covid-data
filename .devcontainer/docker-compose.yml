@@ -1,15 +1,7 @@
 services:
-  python-dev:
+  python:
     build:
       context: ../
-      dockerfile: Dockerfile  # Optional if your file is named "Dockerfile"
-      args:
-        BUILD_LANG: ${LANG}  # Pass host LANG into build
-    environment:
-      LANG: ${LANG}
-      LC_ALL: ${LANG}      
-    #image: mcr.microsoft.com/devcontainers/python:1-3.12-bullseye
+      dockerfile: Dockerfile.dev     
     volumes: 
       - ../..:/workspaces:cached
-    command: sleep infinity
-

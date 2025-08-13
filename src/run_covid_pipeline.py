@@ -2,14 +2,14 @@
 sources if it doesn't already exist and tranforms the data
 ready to be stored in final format"""
 
-from pipeline import extract
-from pipeline.eu import transform_movement_indicators as mi
-from pipeline.utils import get_details, get_set_config
+from extract import extract
+from transform.eu import transform_movement_indicators as mi
+from utils import get_details, get_set_config
 
 
 def setup_values():
     """setup environment and extract details"""
-    get_set_config("covid-data.env")
+    get_set_config(".env")
 
 
 def process_uk_data():

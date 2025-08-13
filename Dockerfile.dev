@@ -13,10 +13,12 @@ WORKDIR /app
 
 # Copy dependency list
 COPY requirements.txt .
+COPY requirements-dev.txt .
 
 # Upgrade pip and install dependencies, creating wheels for the next stage
 RUN pip install --upgrade pip \
     && pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt \
+    && pip wheel --no-cache-dir --wheel-dir /wheels -r requirements-dev.txt \
     && rm -rf /root/.cache/pip
 
 # Stage 2: Production image
@@ -32,9 +34,11 @@ COPY --from=builder /wheels /wheels
 
 # Copy requirements.txt again for installation within this stage
 COPY requirements.txt .
+COPY requirements-dev.txt .
 
 # Install dependencies from the wheels
 RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt \
+    && pip install --no-cache-dir --no-index --find-links=/wheels -r requirements-dev.txt \
     && rm -rf /wheels
 
 # Create a custom user with UID 1234 and GID 1234
@@ -48,6 +52,7 @@ USER pyuser
 WORKDIR /home/pyuser
 
 ENV PATH="/home/pyuser/.local/bin:$PATH"
+
 
 # Copy the app code
 # COPY . .

@@ -5,8 +5,9 @@ import os
 from io import BytesIO
 
 import requests
-from pipeline.utils import create_dir, get_dir, get_file, unzip_files
 from tqdm import tqdm
+
+from utils import create_dir, get_dir, get_file, unzip_files
 
 
 def get_filename_from_endpoint(endpoint: str) -> str:

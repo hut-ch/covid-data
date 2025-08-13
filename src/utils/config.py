@@ -3,7 +3,7 @@
 import dotenv
 
 
-def get_set_config(file_path="covid-data.env"):
+def get_set_config(file_path=".env"):
     """get and set environment variables
     for use by the rest of the job"""
     env_loc = dotenv.find_dotenv(file_path)
