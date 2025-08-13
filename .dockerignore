@@ -1,20 +1,48 @@
-__pycache__
+# Ignore Python bytecode files
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
-env
-pip-log.txt
-pip-delete-this-directory.txt
-.tox
+
+# Ignore virtual environments
+venv/
+env/
+
+# Ignore test-related files and directories
+.tox/
+.pytest_cache/
 .coverage
-.coverage.*
-.cache
-nosetests.xml
 coverage.xml
 *.cover
-*.log
-.git
 .mypy_cache
-.pytest_cache
+nosetests.xml
 .hypothesis
+
+# Ignore editor and IDE files
+.devcontainer/
+.vscode/
+.idea/
+
+# Ignore pip related
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Ignore version control directories
+.git/
+.gitignore
+
+# Ignore logs
+*.log
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore environment files (sensitive)
+.env
+.env.local
+
+# Ignore build directories
+/build
+/dist

@@ -1,45 +1,34 @@
-# Use the official Python 3.13.5 image based on Debian Bookworm
+# Stage 1: Build dependencies and create wheels (optional, for faster installs)
+FROM python:3.13.5-slim-bookworm AS builder
+
+# Install system dependencies needed for building packages
+RUN apt-get update && apt-get install -y build-essential \
+    && rm -rf /var/lib/apt/lists/* 
+
+# Set environment variables for this stage
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Copy dependency list
+COPY requirements.txt .
+
+# Upgrade pip and install dependencies, creating wheels for the next stage
+RUN pip install --upgrade pip \
+    && pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt \
+    && rm -rf /root/.cache/pip
+
+# Stage 2: Production image
 FROM python:3.13.5-slim-bookworm
 
-# Accept host locale or fallback to en_US.UTF-8
-ARG BUILD_LANG=en_US.UTF-8
-
-# Install system dependencies & configure locale
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
-        locales \
-    && rm -rf /var/lib/apt/lists/* \
-    && if [ -z "$BUILD_LANG" ]; then \
-           echo "No BUILD_LANG provided — using C.UTF-8"; \
-           BUILD_LANG="C.UTF-8"; \
-       fi \
-    && if grep -q "$BUILD_LANG" /etc/locale.gen; then \
-           sed -i "/$BUILD_LANG/s/^# //g" /etc/locale.gen && locale-gen "$BUILD_LANG"; \
-       else \
-           echo "Warning: $BUILD_LANG not found — using C.UTF-8"; \
-           sed -i '/C.UTF-8/s/^# //g' /etc/locale.gen && locale-gen C.UTF-8 \
-           && BUILD_LANG="C.UTF-8"; \
-       fi
-
-# Set environment variables for all processes
-ENV LANG=$BUILD_LANG \
-    LC_ALL=$BUILD_LANG \
-    PYTHONDONTWRITEBYTECODE=1 \
+#  Set locale variables for the final image (if needed, otherwise remove)
+ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 # Create a custom user with UID 1234 and GID 1234
 RUN groupadd -g 1234 pygroup && \
     useradd -m -u 1234 -g pygroup pyuser
-
-
-# Copy dependency list
-COPY requirements.txt .
-
-# Upgrade pip and install dependencies
-RUN pip install --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt \
-    && rm -rf /root/.cahee/pip
-
 
 # Switch to the custom user
 USER pyuser
@@ -49,7 +38,17 @@ WORKDIR /home/pyuser
 
 ENV PATH="/home/pyuser/.local/bin:$PATH"
 
-# Copy the rest of your app code (optional here)
+# Copy the built wheels from the builder stage
+COPY --from=builder /wheels /wheels
+
+# Copy requirements.txt again for installation within this stage
+COPY requirements.txt .
+
+# Install dependencies from the wheels
+RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt \
+    && rm -rf /wheels
+
+# Copy the app code
 # COPY . .
 
 # Set default command
