@@ -4,4 +4,4 @@ services:
       context: ../
       dockerfile: Dockerfile.dev     
     volumes: 
-      - ../..:/workspaces:cached
+      - ../:/covid-data:cached
