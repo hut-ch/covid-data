@@ -2,8 +2,9 @@
 sources if it doesn't already exist and tranforms the data
 ready to be stored in final format"""
 
+import transform.eu.transform_movement_indicators as mi
+import transform.eu.transform_national_deaths as nd
 from extract import extract
-from transform.eu import transform_movement_indicators as mi
 from utils import get_details, get_set_config
 
 
@@ -29,6 +30,7 @@ def process_all_data():
     endpoints = get_details("all")
     extract.process_endpoints(endpoints)
     mi.transform()
+    nd.national_deaths()
 
 
 if __name__ == "__main__":

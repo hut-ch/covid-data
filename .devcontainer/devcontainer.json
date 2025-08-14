@@ -49,35 +49,44 @@
 				"gerda.vscode-parquet-viewer"
 			],
 			"settings": {
+				"[json]": {
+					"editor.quickSuggestions": {
+						"strings": true
+					},
+					"editor.suggest.insertMode": "replace",
+					"editor.defaultFormatter": "vscode.json-language-features"
+				},
 				"[python]": {
-					"python.formatting.provider": "mikoz.composite-formatter",
-					"editor.formatOnSave": true
+					"editor.defaultFormatter": "mikoz.composite-formatter",
+					"editor.formatOnSave": true		
 					//"editor.codeActionsOnSave": {
 					//	"source.organizeImports": "explicit"
 					//}
 				},
-				"composite-formatter.formatters": [
-					"ms-python.python",
-					"ms-python.black-formatter",
-					"ms-python.isort"
-				],
-
-				"composite-formatter.language":"python",
 				//black formatter settings
 				"black-formatter.args": [
 					"--line-length=88"
 				],
 				//isort formatter settings
 				"isort.args": [
-					"--profile=composite-formatter",
+					"--profile=black",
 					"--skip=.gitignore,.dockerignore,.devcontainer/",
 					"--line-length=88"
 				],
+				"composite-formatter.formatters": [
+						"ms-python.python",
+						"ms-python.black-formatter",
+						"ms-python.isort"
+					],
+				"composite-formatter.language":"python",
 				//mypy linter settings
-				"mypy-type-checker.importStrategy":"fromEnvironment",
+				"mypy-type-checker.args": [
+					"-generated-members=pandas.*"
+				],
+				//"mypy-type-checker.importStrategy":"fromEnvironment",
 				//flake* linter settings
 				"flake8.args": [
-					"--line-length=88"
+					"--max-line-length=88"
 				],
 				//"pylint.importStrategy": "fromEnvironment",
 				"pylint.args": ["--max-line-length=88"],

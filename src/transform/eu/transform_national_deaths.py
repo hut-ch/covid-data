@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from utils import file_check, get_dir
+from utils import file_check, get_dir, get_file
 
 
 def national_deaths():
@@ -15,6 +15,8 @@ def national_deaths():
     file_path = get_dir("raw-folder", "eu")
 
     available_files = file_check(file_list, file_path)
+
+    available_files = [get_file(file_path, f) for f in available_files]
 
     for file in available_files:
         data = pd.read_json(file)

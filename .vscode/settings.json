@@ -1,0 +1,8 @@
+{
+    "[python]": {
+        "editor.defaultFormatter": "mikoz.composite-formatter"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    }
+}
