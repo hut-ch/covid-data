@@ -33,7 +33,7 @@
 
 	// Use 'postCreateCommand' to run commands after the container is created.
 	 "postAttachCommand": "pre-commit install && pre-commit autoupdate",
-	 
+
 	// Configure tool-specific properties.
 	 "customizations": {
 		"vscode": {
@@ -49,20 +49,14 @@
 				"gerda.vscode-parquet-viewer"
 			],
 			"settings": {
-				"[json]": {
-					"editor.quickSuggestions": {
-						"strings": true
-					},
-					"editor.suggest.insertMode": "replace",
-					"editor.defaultFormatter": "vscode.json-language-features"
-				},
 				"[python]": {
-					"editor.defaultFormatter": "mikoz.composite-formatter",
-					"editor.formatOnSave": true		
-					//"editor.codeActionsOnSave": {
-					//	"source.organizeImports": "explicit"
-					//}
+					"editor.defaultFormatter": "ms-python.black-formatter",
+					"editor.formatOnSave": true,
+					"editor.codeActionsOnSave": {
+						"source.organizeImports": "explicit"
+					}
 				},
+
 				//black formatter settings
 				"black-formatter.args": [
 					"--line-length=88"
@@ -73,12 +67,7 @@
 					"--skip=.gitignore,.dockerignore,.devcontainer/",
 					"--line-length=88"
 				],
-				"composite-formatter.formatters": [
-						"ms-python.python",
-						"ms-python.black-formatter",
-						"ms-python.isort"
-					],
-				"composite-formatter.language":"python",
+
 				//mypy linter settings
 				"mypy-type-checker.args": [
 					"-generated-members=pandas.*"
@@ -93,7 +82,7 @@
 				"pylint.cwd": "${workspaceFolder}/src"
 			}
 		}
-	 },
+	 }
 	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
-	 "remoteUser": "pyuser"
+	// "remoteUser": "pyuser"
 }

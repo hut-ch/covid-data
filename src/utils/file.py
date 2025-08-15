@@ -1,5 +1,6 @@
 """file and folder utilities for the pipeline"""
 
+import glob
 import json
 import os
 from io import BytesIO
@@ -84,6 +85,11 @@ def create_dir(path: str):
     os.makedirs(path, exist_ok=True)
 
 
-def file_check(filelist: list, filepath: str):
-    """Checks to see if input files exist in given path"""
-    return [f for f in filelist if os.path.isfile(os.path.join(filepath, f))]
+def file_check(filepath: str, pattern: str):
+    """Checks to see if files exist in given path matching pattern"""
+    files = glob.glob(filepath + pattern)
+
+    if not files:
+        return None
+
+    return files

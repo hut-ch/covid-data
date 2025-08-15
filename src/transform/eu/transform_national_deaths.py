@@ -2,21 +2,13 @@
 
 import pandas as pd
 
-from utils import file_check, get_dir, get_file
+from utils import file_check, get_dir
 
 
 def national_deaths():
     """transform case death eu data"""
-    nat_deaths = "nationalcasedeath.json"
-    nat_deaths_arch = "nationalcasedeath-archive.json"
-    nat_death_daily = "nationalcasedeath-eueea-daily-ei.json"
-
-    file_list = [nat_deaths, nat_deaths_arch, nat_death_daily]
     file_path = get_dir("raw-folder", "eu")
-
-    available_files = file_check(file_list, file_path)
-
-    available_files = [get_file(file_path, f) for f in available_files]
+    available_files = file_check(file_path, "/nationalcasedeath*.json")
 
     for file in available_files:
         data = pd.read_json(file)

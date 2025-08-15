@@ -3,12 +3,10 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: '.gitignore|.devcontainer/'
       - id: end-of-file-fixer
-        exclude: '.gitignore|.devcontainer/'
       - id: check-yaml
       - id: check-json
-        exclude: '.gitignore|.devcontainer/'
+        exclude: devcontainer.json
       - id: check-toml
       - id: check-ast  # Basic Python syntax check
       - id: debug-statements
