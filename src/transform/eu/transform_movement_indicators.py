@@ -232,41 +232,50 @@ def calc_national_cases_14(data: pd.DataFrame):
     return data
 
 
+def create_datasets(
+    data: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Create required datasets from transformed data"""
+
+    # create country lookup dataset
+    countries = get_unique_data(data, ["country_code", "country"], ["country_code"])
+
+    # create region lookup dataset
+    regions = get_unique_data(data, ["region_code", "region"], ["region_code"])
+
+    # create regional metrics dataset
+    regional = cleanup_columns(data, "regional")
+
+    # create national metrics dataset
+    national = cleanup_columns(data, "national")
+    national = get_unique_data(national, national.columns, ["country_code", "week"])
+
+    return (countries, regions, regional, national)
+
+
 def transform():
     """Runs transformation process for the Movement Indicators EU data"""
+
     file_path = get_dir("raw-folder", "eu")
     available_files = file_check(file_path, "/movementindicators*.json")
-    mi_data = pd.DataFrame()
+    all_data = pd.DataFrame()
 
     if available_files:
         for file in available_files:
             data = import_file(file)
             data = create_columns(data)
 
-            mi_data = combine_data(mi_data, data, combine_method="union")
+            all_data = combine_data(all_data, data, combine_method="union")
 
-        # de-duplicate data that is repeated across different files
+        # De-duplicate data that is repeated across different files
         group_cols = ["country_code", "region_code", "week"]
-        merge_rows(mi_data, group_cols)
+        merge_rows(all_data, group_cols)
 
-        # create indivdual datasets ready to output
-        mi_countries = get_unique_data(
-            mi_data, ["country_code", "country"], ["country_code"]
-        )
-        mi_regions = get_unique_data(
-            mi_data, ["region_code", "region"], ["region_code"]
-        )
-        mi_regional = cleanup_columns(mi_data, "regional")
+        # Create missing national_cases_14 column on merged data
+        mi_data = calc_national_cases_14(all_data)
 
-        # calculate missing national column
-        mi_national = calc_national_cases_14(mi_data)
-        mi_national = cleanup_columns(mi_data, "national")
-
-        # We don't need to aggregate the regional data to national as it is repeated
-        # per region, so just get first instance
-        mi_national = get_unique_data(
-            mi_national, mi_national.columns, ["country_code", "week"]
-        )
+        # Create final datasets from transformed data
+        mi_regions, mi_countries, mi_national, mi_regional = create_datasets(mi_data)
 
         # save data
         datasets = [mi_regions, mi_countries, mi_national, mi_regional]
