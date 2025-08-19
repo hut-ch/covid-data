@@ -6,6 +6,8 @@ import os
 from io import BytesIO
 from zipfile import BadZipFile, ZipFile, is_zipfile
 
+from tqdm import tqdm
+
 
 def is_json(data):
     """probably can be removed:check is dfata is json format"""
@@ -31,18 +33,21 @@ def save_file(data, filepath: str):
 
 
 def unzip_files(filepath: str):
-    """gets a list of .zip files from the given file path
-    if there are zip files then for each fle checks if it is
-    a valid zip file and unzips the cxontents if it hasn't
-    already been extracted
+    """
+    Gets a list of .zip files from the given file path
+
+    if there are zip filesP
+        - For each fleP
+            - Checks if it is a valid zip file
+            - Unzips the contents if they haven't been extracted
     """
     zip_files = [
         f
         for f in os.listdir(filepath)
         if f.endswith(".zip") and os.path.isfile(os.path.join(filepath, f))
     ]
-    # zip_files = os.listdir(filepath)
-    if len(zip_files) > 0:
+
+    if zip_files:
         for zip_file in zip_files:
             zip_path = get_file(filepath, zip_file)
 
@@ -56,23 +61,24 @@ def unzip_files(filepath: str):
                         ]
 
                         if not_extracted:
-                            print(f"Extracting file: {zip_file}")
-                            archive.extractall(filepath, not_extracted)
-                            print(f"File extracted: {zip_file}")
+                            for member in tqdm(
+                                not_extracted,
+                                desc=f"Extracting {zip_file}",
+                                unit="file",
+                            ):
+                                archive.extract(member, filepath)
                         else:
-                            print(f"{zip_file} already extracted, skipping")
+                            print(f"{zip_file} already extracted")
                 except BadZipFile:
                     print(f"Error extracting zip file: {zip_file}")
             else:
-                print(f"{zip_file} is not a valid zip file, skipping")
-    else:
-        print("No zip files found")
+                print(f"{zip_file} is not a valid zip file")
 
 
 def get_dir(root, folder):
     """Get target directory from env file"""
     root_folder = os.getenv(root)
-    return os.path.join(root_folder, folder)
+    return get_file(root_folder, folder)
 
 
 def get_file(filepath, file):
@@ -83,6 +89,13 @@ def get_file(filepath, file):
 def create_dir(path: str):
     """Ensure target directory exists."""
     os.makedirs(path, exist_ok=True)
+
+
+def file_exists(filepath, file) -> bool:
+    """Check if a file exists"""
+    file_loc = get_file(filepath, file)
+
+    return os.path.exists(file_loc)
 
 
 def file_check(filepath: str, pattern: str):

@@ -6,10 +6,12 @@ from datetime import timedelta
 
 import pandas as pd
 
-from utils.file import file_check, get_dir
-from utils.transform import (
+from utils import (
     check_columns_exist,
     combine_data,
+    create_week_start_end,
+    file_check,
+    get_dir,
     get_unique_data,
     is_subset,
     merge_rows,
@@ -22,7 +24,7 @@ def import_file(file: str) -> pd.DataFrame:
     Import for most common format of movment indicator data from source
     json file into Pandas Dataframe then rename columns
     """
-    print(file)
+
     data = pd.read_json(file)
     data.columns = data.columns.str.replace("subnational_", "regional_", regex=True)
     data.rename(
@@ -66,7 +68,7 @@ def create_columns(data: pd.DataFrame) -> pd.DataFrame:
     ]
 
     # Get list of columns that exist in the data
-    cols_exist = check_columns_exist(data, required_columns)[0]
+    cols_exist = check_columns_exist(data, required_columns, warn=False)[0]
 
     # create separate national and regional metrics
     create_national_regional(data, cols_exist)
@@ -75,8 +77,7 @@ def create_columns(data: pd.DataFrame) -> pd.DataFrame:
     if "colour" in data.columns:
         data["colour"] = data["colour"].str.lower()
     if "week" in data.columns:
-        data["week_start"] = pd.to_datetime(data["week"] + "-0", format="%Y-%U-%w")
-        data["week_end"] = pd.to_datetime(data["week"] + "-6", format="%Y-%U-%w")
+        create_week_start_end(data, "week")
     if is_subset(data.columns, ["country", "country_code"]):
         data.loc[
             (data["country"] == "Liechtenstein") & (data["country_code"] == "NA"),
@@ -85,7 +86,7 @@ def create_columns(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
-def create_national_regional(data: pd.DataFrame, cols_exist: list):
+def create_national_regional(data: pd.DataFrame, cols_exist: list | None):
     """
     Create a set of national anr regional columns based on the
     level of data availble in the source
@@ -97,6 +98,9 @@ def create_national_regional(data: pd.DataFrame, cols_exist: list):
         notifiaction
         vaccine
     """
+    if cols_exist is None:
+        return data
+
     # Columns to create
     col_map = [
         (
@@ -237,11 +241,11 @@ def create_datasets(
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Create required datasets from transformed data"""
 
-    # create country lookup dataset
-    countries = get_unique_data(data, ["country_code", "country"], ["country_code"])
-
     # create region lookup dataset
     regions = get_unique_data(data, ["region_code", "region"], ["region_code"])
+
+    # create country lookup dataset
+    countries = get_unique_data(data, ["country_code", "country"], ["country_code"])
 
     # create regional metrics dataset
     regional = cleanup_columns(data, "regional")
@@ -250,43 +254,49 @@ def create_datasets(
     national = cleanup_columns(data, "national")
     national = get_unique_data(national, national.columns, ["country_code", "week"])
 
-    return (countries, regions, regional, national)
+    return (regions, countries, regional, national)
 
 
 def transform():
     """Runs transformation process for the Movement Indicators EU data"""
+
+    print("\nTransforming EU Movement Indicators")
 
     file_path = get_dir("raw-folder", "eu")
     available_files = file_check(file_path, "/movementindicators*.json")
     all_data = pd.DataFrame()
 
     if available_files:
+        print("Importing data and creating new columns")
         for file in available_files:
             data = import_file(file)
             data = create_columns(data)
 
             all_data = combine_data(all_data, data, combine_method="union")
 
+        print("De-duplicating data")
         # De-duplicate data that is repeated across different files
         group_cols = ["country_code", "region_code", "week"]
-        merge_rows(all_data, group_cols)
+        all_data = merge_rows(all_data, group_cols, aggregate=False)
 
         # Create missing national_cases_14 column on merged data
         mi_data = calc_national_cases_14(all_data)
 
+        print("Creating final datasets")
         # Create final datasets from transformed data
-        mi_regions, mi_countries, mi_national, mi_regional = create_datasets(mi_data)
+        mi_regions, mi_countries, mi_regional, mi_national = create_datasets(mi_data)
 
+        print("Outputting datasets")
         # save data
-        datasets = [mi_regions, mi_countries, mi_national, mi_regional]
+        datasets = [mi_regions, mi_countries, mi_regional, mi_national]
         filenames = [
             "mi-regions.json",
             "mi-countries.json",
-            "mi-national-data.json",
             "mi-regional-data.json",
+            "mi-national-data.json",
         ]
         save_to_json(datasets, filenames, "eu")
     else:
-        print("No movement indicators data found, skipping transform")
+        print("Warning: EU Movement Indicators data not found")
 
-    print("Transformed EU Movement Indicators")
+    print("Completed EU Movement Indicators")

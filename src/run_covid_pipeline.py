@@ -2,9 +2,8 @@
 sources if it doesn't already exist and tranforms the data
 ready to be stored in final format"""
 
-import transform.eu.transform_movement_indicators as mi
-import transform.eu.transform_national_deaths as nd
-from extract import extract
+import extract
+import transform
 from utils import get_details, get_set_config
 
 
@@ -23,14 +22,14 @@ def process_eu_data():
     """run just eu covid data pipelins"""
     endpoints = get_details("eu")
     extract.process_endpoints(endpoints)
+    transform.transform_eu()
 
 
 def process_all_data():
     """run all region covid data pipelines"""
     endpoints = get_details("all")
     extract.process_endpoints(endpoints)
-    mi.transform()
-    nd.national_deaths()
+    transform.transform_all()
 
 
 if __name__ == "__main__":

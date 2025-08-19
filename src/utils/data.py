@@ -1,5 +1,7 @@
 """data transformation specfic utilities for the pipeline"""
 
+from typing import Any, Callable, Union
+
 import numpy as np
 import pandas as pd
 
@@ -64,8 +66,16 @@ def get_unique_data(data: pd.DataFrame, col_list: list | None, key: list | None)
         data, col_list, key
     )
 
-    df = data[col_list] if col_list else data
-    return df.drop_duplicates(subset=key, keep="first")
+    unique_data = data[col_list] if col_list else data
+    return unique_data.drop_duplicates(subset=key, keep="first")
+
+
+def first_non_null(x: pd.Series):
+    """Return the first non-null value, or NaN if none exist."""
+    return x.dropna().iloc[0] if x.notna().any() else np.nan
+
+
+AggregationFunc = Union[str, Callable[[pd.Series], Any]]
 
 
 def merge_rows(
@@ -74,10 +84,9 @@ def merge_rows(
     """
     Merge/Deduplicate rows in a Dataframe either:
       1. Merging by picking the first non na value for a column
-      2. Aggregating rows together and perfomring set aggreation based
+      2. Aggregating rows together and performing set aggregation based
       on column name conventions
     """
-
     # Create column to identify duplicates in data based on grouping columns provided
     data_dupes = (
         data.groupby(group_cols, dropna=False).size().reset_index(name="dupe_count")
@@ -92,37 +101,54 @@ def merge_rows(
     unique_data = data.merge(unique_keys, on=group_cols, how="inner")
     duplicated_data = data.merge(duplicated_keys, on=group_cols, how="inner")
 
-    # create the aggregation functions that will be used on each column
-    # or genrically depending on if aggregation is required
+    # if not duplicate return unique data
+    if duplicated_data.shape[0] == 0:
+        return unique_data.copy()
+
     if aggregate:
-        # boilerplate example that may need to be used in later transformations
-        # but left here as reminder
+        # Build column-specific aggregations, this is just a
+        # boilerplate example and should be updated at a later date
+        aggregations: dict[str, AggregationFunc] = {}
+        for col in duplicated_data.columns:
+            if col in group_cols:
+                continue
+            if col.endswith("_set"):
+                aggregations[col] = lambda x: list(set(x.dropna()))
+            elif col.endswith("_sum"):
+                aggregations[col] = "sum"
+            elif col.endswith("_mean"):
+                aggregations[col] = "mean"
+            elif col.endswith("_max"):
+                aggregations[col] = "max"
+            elif col.endswith("_min"):
+                aggregations[col] = "min"
+            else:
+                aggregations[col] = first_non_null
 
-        # for col in data.columns:
-        #    if col in group_cols:
-        #        continue
-        #    if pd.api.types.is_numeric_dtype(data[col]):
-        #        col_lower = col.lower()
-        #        if any(k in col_lower for k in ["count", "cases", "population"]):
-        #            agg_funcs[col] = "sum"
-        #        elif "rate" in col_lower:
-        #            agg_funcs[col] = "mean"
-        #        else:
-        #            agg_funcs[col] = "max"
-        #    else:
-        #        agg_funcs[col] = lambda x: (
-        #            x.dropna().iloc[0] if x.notna().any() else np.nan
-        #        )
-        aggregations = {lambda x: x.dropna().iloc[0] if x.notna().any() else np.nan}
+        dedupe_data = (
+            duplicated_data.groupby(group_cols, dropna=False)
+            .agg(aggregations)
+            .reset_index()
+        )
     else:
-        aggregations = {lambda x: x.dropna().iloc[0] if x.notna().any() else np.nan}
+        # Apply "first non-null" row-wise in one go
+        dedupe_data = (
+            duplicated_data.groupby(group_cols, dropna=False).first().reset_index()
+        )
 
-    # perform the deduplication
-    dedupe_data = (
-        duplicated_data.groupby(group_cols, dropna=False)
-        .agg(aggregations)
-        .reset_index()
-    )
+    if "date" in group_cols:
+        print(
+            duplicated_data[
+                (duplicated_data["date"] == "2021-01-05")
+                & (duplicated_data["territory_code"] == "BEL")
+            ].to_string()
+        )
+        print(
+            dedupe_data[
+                (dedupe_data["date"] == "2021-01-05")
+                & (dedupe_data["territory_code"] == "BEL")
+            ].to_string()
+        )
 
     # return a complete dataset with unique and deduplicated data combined
     return combine_data(unique_data, dedupe_data, combine_method="union")
@@ -172,3 +198,25 @@ def save_to_json(datasets, file_names, folder):
         file = get_file(save_dir, filename)
         dataset.reset_index(drop=True, inplace=True)
         dataset.to_json(file)
+
+
+def create_week_start_end(data: pd.DataFrame, week_col: str) -> pd.DataFrame:
+    """
+    Create a week-start and week-end date columns
+    based on input week column (YYYY-WW)
+    """
+    if week_col in data.columns:
+        split_cols = data[week_col].str.split("-", n=1, expand=True)
+        data["year"] = split_cols[0].astype(int)
+        data["week"] = split_cols[1].astype(int)
+
+        # Use ISO calendar to calculate week start and end
+        data["week_start"] = data.apply(
+            lambda r: pd.to_datetime(
+                f"{r['year']}-W{int(r['week']):02d}-1", format="%G-W%V-%u"
+            ),
+            axis=1,
+        )
+        data["week_end"] = data["week_start"] + pd.Timedelta(days=6)
+
+    return data

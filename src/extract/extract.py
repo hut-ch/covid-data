@@ -12,6 +12,7 @@ from utils import create_dir, get_dir, get_file, unzip_files
 
 def get_filename_from_endpoint(endpoint: str) -> str:
     """Convert endpoint to a clean filename."""
+
     base_part = endpoint.strip("/").split("/")[0]
     filename = base_part.replace("_", "-").lower()
     # override for specific file
@@ -28,6 +29,7 @@ def download_data(url: str, filepath: str, filename: str):
     specified locaiton with give filename. displays file
     download procgress in console
     """
+
     try:
         response = requests.get(url, stream=True, timeout=300)
         response.raise_for_status()
@@ -41,7 +43,6 @@ def download_data(url: str, filepath: str, filename: str):
             unit="B",
             unit_scale=True,
             desc=f"Downloading {filename}",
-            ascii=True,
         ) as pbar:
             for chunk in response.iter_content(chunk_size=chunk_size):
                 if chunk:
@@ -57,8 +58,14 @@ def download_data(url: str, filepath: str, filename: str):
 
 def process_endpoints(regions: list):
     """Main loop to fetch and save all endpoints."""
+
+    print("###################################")
+    print("Starting Extract")
+
     for region in regions:
         base_url, endpoints, folder = region
+        print(f"\nDownloading {folder} files")
+
         # get the complete save path and create if it doesn't exist
         save_dir = get_dir("raw-folder", folder)
         create_dir(save_dir)
@@ -70,8 +77,9 @@ def process_endpoints(regions: list):
 
             if not os.path.exists(filepath):
                 download_data(url, filepath, filename)
-                print(f"Saved as {filepath}")
             else:
-                print(f"{filename} already exists in target location skipping")
-
+                print(f"{filename} already exists")
+        print(f"\nExtracting {folder} files")
         unzip_files(save_dir)
+
+    print("\nFinished Extract")
