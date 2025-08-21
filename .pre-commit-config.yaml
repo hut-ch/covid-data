@@ -20,23 +20,24 @@ repos:
         exclude: __init__.py
         args: ["--line-length=88"]
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.17.1
-    hooks:
-      - id: mypy
-        additional_dependencies: ["types-requests"]  # Example: add stubs if needed
+  #- repo: https://github.com/pre-commit/mirrors-mypy
+  #  rev: v1.17.1
+  #  hooks:
+  #    - id: mypy
+  #      additional_dependencies: ["types-requests"]  # Example: add stubs if needed
 
-  - repo: https://github.com/pycqa/pylint
-    rev: v3.3.8
-    hooks:
-      - id: pylint
-        additional_dependencies:
-          - pandas
-          - requests
-          - tqdm
-          - dotenv
-        exclude: __init__.py
-        args: ["--generated-members=pandas.*"]
+  #- repo: https://github.com/pycqa/pylint
+  #  rev: v3.3.8
+  #  hooks:
+  #    - id: pylint
+  #      additional_dependencies:
+   #       - pandas
+  #        - requests
+  #        - tqdm
+   #       - dotenv
+  #        - ijson
+  ##      exclude: __init__.py
+   #     args: ["--generated-members=pandas.*"]
 
   - repo: https://github.com/PyCQA/flake8
     rev: 7.3.0

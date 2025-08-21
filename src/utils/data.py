@@ -1,11 +1,10 @@
 """data transformation specfic utilities for the pipeline"""
 
+import re
 from typing import Any, Callable, Union
 
 import numpy as np
 import pandas as pd
-
-from utils.file import create_dir, get_dir, get_file
 
 
 def check_columns_exist(data: pd.DataFrame, *col_lists: list | None, warn: bool = True):
@@ -65,8 +64,8 @@ def get_unique_data(data: pd.DataFrame, col_list: list | None, key: list | None)
     col_list, key = check_columns_exist(  # pylint: disable=unbalanced-tuple-unpacking
         data, col_list, key
     )
-
     unique_data = data[col_list] if col_list else data
+
     return unique_data.drop_duplicates(subset=key, keep="first")
 
 
@@ -136,20 +135,6 @@ def merge_rows(
             duplicated_data.groupby(group_cols, dropna=False).first().reset_index()
         )
 
-    if "date" in group_cols:
-        print(
-            duplicated_data[
-                (duplicated_data["date"] == "2021-01-05")
-                & (duplicated_data["territory_code"] == "BEL")
-            ].to_string()
-        )
-        print(
-            dedupe_data[
-                (dedupe_data["date"] == "2021-01-05")
-                & (dedupe_data["territory_code"] == "BEL")
-            ].to_string()
-        )
-
     # return a complete dataset with unique and deduplicated data combined
     return combine_data(unique_data, dedupe_data, combine_method="union")
 
@@ -178,37 +163,15 @@ def combine_data(*data: pd.DataFrame, combine_method: str = "union"):
     return combined
 
 
-def save_to_json(datasets, file_names, folder):
-    """
-    Outputs the given Dataframes as json files into the
-    cleansed-data folder with the given filename
-
-    Args:
-    datasets: Pandas Dataframes to be ouptut .
-    file_names: filenames for each DatFrame to be output.
-    folder: folder inside cleansed data to be saved
-
-    Returns:
-        A Pandas Dataframe for movement indicator data.
-    """
-    save_dir = get_dir("cleansed-data", folder)
-    create_dir(save_dir)
-
-    for dataset, filename in zip(datasets, file_names):
-        file = get_file(save_dir, filename)
-        dataset.reset_index(drop=True, inplace=True)
-        dataset.to_json(file)
-
-
 def create_week_start_end(data: pd.DataFrame, week_col: str) -> pd.DataFrame:
     """
     Create a week-start and week-end date columns
-    based on input week column (YYYY-WW)
+    based on input week column (YYYY-ww) or (YYYY-Www)
     """
     if week_col in data.columns:
         split_cols = data[week_col].str.split("-", n=1, expand=True)
         data["year"] = split_cols[0].astype(int)
-        data["week"] = split_cols[1].astype(int)
+        data["week"] = split_cols[1].str[-2:].astype(int)
 
         # Use ISO calendar to calculate week start and end
         data["week_start"] = data.apply(
@@ -220,3 +183,12 @@ def create_week_start_end(data: pd.DataFrame, week_col: str) -> pd.DataFrame:
         data["week_end"] = data["week_start"] + pd.Timedelta(days=6)
 
     return data
+
+
+def camel_to_snake(name: str) -> str:
+    """Convert a 'CamelCase' or 'camelCase' string to 'camel_case'"""
+
+    name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)  # Handle first capital in word
+    name = re.sub("([a-z0-9])([A-Z])", r"\1_\2", name)  # Handle adjacent capitals
+
+    return name.lower()

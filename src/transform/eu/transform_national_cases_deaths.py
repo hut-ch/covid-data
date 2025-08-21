@@ -1,6 +1,4 @@
-"""main transformation for National DEaths EU data"""
-
-import json
+"""Main transformation for National Deaths EU data"""
 
 import pandas as pd
 
@@ -12,32 +10,10 @@ from utils import (
     get_dir,
     get_unique_data,
     is_subset,
+    load_json,
     merge_rows,
     save_to_json,
 )
-
-
-def load_json(file: str) -> pd.DataFrame:
-    """
-    load json data and check the structure of the file
-    if the data is wrappped in {"records": [...]}
-        Create the datafram from records contents
-    else
-        Create Pandas dataframe
-    """
-
-    with open(file, "r", encoding="utf8") as f:
-        raw_data = json.load(f)
-
-    # check if data  is wrapped in {"records": [...]}
-    if isinstance(raw_data, dict) and "records" in raw_data:
-        data = pd.DataFrame(raw_data["records"])
-    elif isinstance(raw_data, list):
-        data = pd.DataFrame(raw_data)
-    else:
-        raise ValueError("Unsupported JSON structure")
-
-    return data
 
 
 def import_file(file: str) -> pd.DataFrame:

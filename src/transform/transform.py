@@ -1,6 +1,6 @@
 """Runs all transformations for EU data"""
 
-from transform.eu import mi_transform, nd_transform
+from transform.eu import mi_transform, nd_transform, vt_transform
 
 
 def transform_all():
@@ -18,6 +18,7 @@ def transform_eu():
 
     mi_transform()
     nd_transform()
+    vt_transform()
 
     print("\nFinished EU Transformation")
 

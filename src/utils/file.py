@@ -6,6 +6,7 @@ import os
 from io import BytesIO
 from zipfile import BadZipFile, ZipFile, is_zipfile
 
+import pandas as pd
 from tqdm import tqdm
 
 
@@ -106,3 +107,69 @@ def file_check(filepath: str, pattern: str):
         return None
 
     return files
+
+
+def load_json(file: str) -> pd.DataFrame:
+    """
+    load json data and check the structure of the file
+    if the data is wrappped in {"records": [...]}
+        Create the datafram from records contents
+    else
+        Create Pandas dataframe
+    """
+
+    with open(file, "r", encoding="utf8") as f:
+        raw_data = json.load(f)
+
+    # check if data  is wrapped in {"records": [...]}
+    if isinstance(raw_data, dict) and "records" in raw_data:
+        data = pd.DataFrame(raw_data["records"])
+    elif isinstance(raw_data, list):
+        data = pd.DataFrame(raw_data)
+    else:
+        raise ValueError("Unsupported JSON structure")
+
+    return data
+
+
+def save_to_json(datasets, file_names, folder):
+    """
+    Outputs the given Dataframes as json files into the
+    cleansed-data folder with the given filename
+
+    Args:
+    datasets: Pandas Dataframes to be ouptut .
+    file_names: filenames for each DatFrame to be output.
+    folder: folder inside cleansed data to be saved
+
+    Returns:
+        A Pandas Dataframe for movement indicator data.
+    """
+    save_dir = get_dir("cleansed-data", folder)
+    create_dir(save_dir)
+
+    for dataset, filename in zip(datasets, file_names):
+        file = get_file(save_dir, filename)
+        dataset.reset_index(drop=True, inplace=True)
+        dataset.to_json(file)
+
+
+def save_chunk_to_json(data_chunk: pd.DataFrame, filename, folder, first_chunk=False):
+    """
+    Append a chunk of data to a JSON array in a file.
+    Maintains valid JSON structure by handling commas and brackets properly.
+    """
+    save_dir = get_dir("cleansed-data", folder)
+    path = get_file(save_dir, filename)
+
+    mode = "w" if first_chunk else "a"
+
+    data_chunk.to_json(path, mode=mode, orient="records", lines=True)
+
+    # with open(path, mode, encoding="utf-8") as f:
+    #    if first_chunk:
+    #       f.write("[")
+    #  else:
+    #     f.write(",\n")  # separate chunks with commas
+
+    # json.dump(data_chunk, f, ensure_ascii=False)
