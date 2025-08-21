@@ -1,7 +1,25 @@
 services:
-  hut_ch-covid-pipeline:
+  python:
+    container_name: hut_ch-covid-pipeline
     build:
       context: ../
-      dockerfile: Dockerfile.dev     
+      dockerfile: Dockerfile
+    depends_on: 
+      - postgresdb
     volumes: 
       - ../..:/workspaces:cached
+
+  postgresdb:
+    image: postgres:14.1-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PW}
+      - POSTGRES_DB=covid-data
+    ports:
+      - ${POSTGRES_PORT}:5432
+    volumes: 
+      - db:/var/lib/postgresql/data
+  
+  pgadmin:
+    image: dpage/pgadmin4:latest

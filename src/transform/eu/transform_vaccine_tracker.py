@@ -127,11 +127,11 @@ def create_datasets(
     vaccines = get_unique_data(data, cols, ["vaccine"])
     # .to_json(orient="records", lines=True)
 
-    # create daily metrics dataset
+    # create national metrics dataset
     national = data[data["level"] == "country"].copy()
     national = national.drop(columns=["year", "week", "level", "region"])
 
-    # create weekly metrics dataset
+    # create regional metrics dataset
     regional = data[data["level"] == "region"].copy()
     regional = regional.drop(columns=["year", "week", "level"])
 
