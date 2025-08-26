@@ -67,7 +67,7 @@ def process_endpoints(regions: list):
         print(f"\nDownloading {folder} files")
 
         # get the complete save path and create if it doesn't exist
-        save_dir = get_dir("raw-folder", folder)
+        save_dir = get_dir("RAW_FOLDER", folder)
         create_dir(save_dir)
 
         for endpoint in endpoints:

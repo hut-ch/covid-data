@@ -3,6 +3,7 @@ sources if it doesn't already exist and tranforms the data
 ready to be stored in final format"""
 
 import extract
+import load
 import transform
 from utils import get_details, get_set_config
 
@@ -16,6 +17,8 @@ def process_uk_data():
     """run just uk covid data pipelins"""
     endpoints = get_details("uk")
     extract.process_endpoints(endpoints)
+    transform.transform_uk()
+    load.load_uk()
 
 
 def process_eu_data():
@@ -23,6 +26,7 @@ def process_eu_data():
     endpoints = get_details("eu")
     extract.process_endpoints(endpoints)
     transform.transform_eu()
+    load.load_eu(refresh=True)
 
 
 def process_all_data():
@@ -30,6 +34,7 @@ def process_all_data():
     endpoints = get_details("all")
     extract.process_endpoints(endpoints)
     transform.transform_all()
+    load.load_all()
 
 
 if __name__ == "__main__":

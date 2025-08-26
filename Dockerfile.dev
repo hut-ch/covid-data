@@ -2,7 +2,7 @@
 FROM python:3.13.5-slim-bookworm AS builder
 
 # Install system dependencies needed for building packages
-RUN apt-get update && apt-get install -y build-essential \
+RUN apt-get update && apt-get install -y build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Set environment variables for this stage
@@ -37,9 +37,12 @@ COPY requirements.txt .
 COPY requirements-dev.txt .
 
 # Install dependencies from the wheels
-RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt \
+RUN apt-get update && apt-get install -y libpq-dev \
+    && pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt \
     && pip install --no-cache-dir --no-index --find-links=/wheels -r requirements-dev.txt \
-    && rm -rf /wheels
+    && rm -rf /wheels \
+    && rm -rf /root/.cache/pip \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create a custom user with UID 1234 and GID 1234
 RUN groupadd -g 1234 pygroup && \

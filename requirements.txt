@@ -1,7 +1,8 @@
 ijson
 pandas
+psycopg2
 python-dotenv
 requests
-tqdm
 sqlalchemy
-psycopg2
+thefuzz
+tqdm

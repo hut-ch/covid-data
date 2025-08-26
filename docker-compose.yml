@@ -4,22 +4,44 @@ services:
     build:
       context: ../
       dockerfile: Dockerfile
-    depends_on: 
+    depends_on:
       - postgresdb
-    volumes: 
+    volumes:
       - ../..:/workspaces:cached
 
   postgresdb:
+    container_name: postgres
     image: postgres:14.1-alpine
-    restart: always
+    env_file:
+      - ../.env.dev
+    hostname: ${DB_HOST}
+    restart: unless-stopped
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PW}
-      - POSTGRES_DB=covid-data
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
     ports:
-      - ${POSTGRES_PORT}:5432
-    volumes: 
-      - db:/var/lib/postgresql/data
-  
+      - '${DB_EXTERNAL_PORT}:5432'
+    volumes:
+      - ../data/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   pgadmin:
+    container_name: pgadmin
+    env_file:
+      - ../.env.dev
+    hostname: ${PGADMIN_HOST}
     image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_MAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PW}
+    ports:
+      - '${PGADMIN_PORT}:80'
+    depends_on:
+      postgresdb:
+        condition: service_healthy

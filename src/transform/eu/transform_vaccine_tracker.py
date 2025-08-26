@@ -1,13 +1,12 @@
 """Main transformation for Vaccine Tracker EU data"""
 
 import datetime
-import timeit
 
 import ijson
 import numpy as np
 import pandas as pd
 
-from utils import (  # combine_data, , is_subset, merge_rows
+from utils import (
     camel_to_snake,
     check_columns_exist,
     create_week_start_end,
@@ -18,6 +17,11 @@ from utils import (  # combine_data, , is_subset, merge_rows
     save_chunk_to_json,
     save_to_json,
 )
+
+# import timeit
+
+# from line_profiler import LineProfiler
+# from memory_profiler import profile
 
 
 def load_json_chunk(file: str, chunk_size: int = 1000):
@@ -58,8 +62,10 @@ def rename_cols(data: pd.DataFrame) -> pd.DataFrame:
     data.rename(
         columns={
             "YearWeekISO": "year_week",
-            "ReportingCountry": "country",
+            "ReportingCountry": "country_code",
+            "Region": "region_code",
             "TargetGroup": "age_group",
+            "Vaccine": "vaccine_code",
         },
         inplace=True,
     )
@@ -70,10 +76,12 @@ def rename_cols(data: pd.DataFrame) -> pd.DataFrame:
 
 def set_level(data: pd.DataFrame):
     """determine if the row applies to a country or region"""
-    required_cols = ["region", "country"]
+    required_cols = ["region_code", "country_code"]
     cols = check_columns_exist(data, required_cols)
     if cols:
-        data["level"] = np.where(data["region"] == data["country"], "country", "region")
+        data["level"] = np.where(
+            data["region_code"] == data["country_code"], "country", "region"
+        )
 
     return data
 
@@ -86,11 +94,11 @@ def get_age_boundries(group: str) -> tuple[int | None, int | None]:
             lower, upper = age_part.split("_")
             return int(lower), int(upper)
         if "<" in age_part:  # Format: Age<18
-            upper = int(age_part.replace("<", ""))
-            return 0, upper
+            upper = age_part.replace("<", "")
+            return 0, int(upper)
         if "+" in age_part:  # Format: Age80+
-            lower = int(age_part.replace("+", ""))
-            return lower, None
+            lower = age_part.replace("+", "")
+            return int(lower), None
     return None, None  # "ALL, AGEUnk"
 
 
@@ -100,9 +108,9 @@ def create_age_range(data: pd.DataFrame):
     using assigned function
     """
     cols = ["age_group"]
-    cols = check_columns_exist(data, cols)
-    if cols:
-        data[["age_lower", "age_upper"]] = data["age_group"].apply(
+    valid_cols = check_columns_exist(data, cols)
+    if valid_cols:
+        data[["age_lower_limit", "age_upper_limit"]] = data["age_group"].apply(
             lambda x: pd.Series(get_age_boundries(x))
         )
 
@@ -111,50 +119,55 @@ def create_age_range(data: pd.DataFrame):
 
 def create_datasets(
     data: pd.DataFrame,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+) -> tuple[
+    pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame
+]:
     """Create required datasets from transformed data"""
 
     # create country lookup dataset
-    cols = ["country"]
-    countries = get_unique_data(data, cols, ["country"])
+    cols = ["country_code"]
+    countries = get_unique_data(data, cols, ["country_code"])
 
     # create region lookup dataset
-    cols = ["country", "region"]
-    regions = get_unique_data(data, cols, ["region"])
+    cols = ["country_code", "region_code"]
+    regions = get_unique_data(data, cols, ["region_code"])
 
-    # create region lookup dataset
-    cols = ["vaccine"]
-    vaccines = get_unique_data(data, cols, ["vaccine"])
-    # .to_json(orient="records", lines=True)
+    # create vaccine lookup dataset
+    cols = ["vaccine_code"]
+    vaccines = get_unique_data(data, cols, ["vaccine_code"])
+
+    # create age lookup dataset
+    cols = ["age_group", "age_lower_limit", "age_upper_limit"]
+    ages = get_unique_data(data, cols, ["age_group"])
 
     # create national metrics dataset
     national = data[data["level"] == "country"].copy()
-    national = national.drop(columns=["year", "week", "level", "region"])
+    national = national.drop(columns=["year", "week", "level", "region_code"])
 
     # create regional metrics dataset
     regional = data[data["level"] == "region"].copy()
     regional = regional.drop(columns=["year", "week", "level"])
 
-    return (countries, regions, vaccines, national, regional)
+    return (countries, regions, vaccines, ages, national, regional)
 
 
+# @profile
 def transform_chunk():
     """Runs transformation process for the National Case Death EU data"""
 
     print("\nTransforming EU Vaccine Tracker")
 
-    file_path = get_dir("raw-folder", "eu")
-    available_files = file_check(file_path, "/vaccine-tracker*.json")
+    available_files = file_check(get_dir("RAW_FOLDER", "eu"), "/vaccine-tracker*.json")
 
     if available_files:
         print("Importing data and creating new columns")
         for file in available_files:
             for i, chunk in enumerate(load_json_chunk(file, 50000)):
                 print(f"Processing Chunk {i}")
-                data = rename_cols(chunk)
-                data = set_level(data)
-                data = create_age_range(data)
-                data = create_week_start_end(data, "year_week")
+                chunk = rename_cols(chunk)
+                chunk = set_level(chunk)
+                chunk = create_age_range(chunk)
+                chunk = create_week_start_end(chunk, "year_week")
 
                 print(f"Creating Final Datasets for Chunk {i}")
 
@@ -162,39 +175,43 @@ def transform_chunk():
                     countries_lookup,
                     regions_lookup,
                     vaccines_lookup,
+                    ages_lookup,
                     national_data,
                     regional_data,
-                ) = create_datasets(data)
+                ) = create_datasets(chunk)
 
                 # output datasets
                 datasets = [
                     countries_lookup,
                     regions_lookup,
                     vaccines_lookup,
+                    ages_lookup,
                     national_data,
                     regional_data,
                 ]
                 filenames = [
-                    "vt-countries.json",
+                    "vt-country.json",
                     "vt-regions.json",
                     "vt-vaccines.json",
-                    "vt-national-data.json",
-                    "vt-regional-data.json",
+                    "vt-ages.json",
+                    "vt-nat-data.json",
+                    "vt-reg-data.json",
                 ]
 
-                first_chunk = 0 in i
+                first_chunk = i == 0
 
                 print(f"Saving Chunk {i} {first_chunk}")
                 for dataset, filename in zip(datasets, filenames):
                     save_chunk_to_json(dataset, filename, "eu", first_chunk)
 
 
+# @profile
 def transform_whole():
     """Runs transformation process for the National Case Death EU data"""
 
     print("\nTransforming EU Vaccine Tracker")
 
-    file_path = get_dir("raw-folder", "eu")
+    file_path = get_dir("RAW_FOLDER", "eu")
     available_files = file_check(file_path, "/vaccine-tracker*.json")
 
     if available_files:
@@ -212,6 +229,7 @@ def transform_whole():
                 countries_lookup,
                 regions_lookup,
                 vaccines_lookup,
+                ages_lookup,
                 national_data,
                 regional_data,
             ) = create_datasets(data)
@@ -221,15 +239,17 @@ def transform_whole():
                 countries_lookup,
                 regions_lookup,
                 vaccines_lookup,
+                ages_lookup,
                 national_data,
                 regional_data,
             ]
             filenames = [
-                "vtw-countries.json",
+                "vtw-country.json",
                 "vtw-regions.json",
                 "vtw-vaccines.json",
-                "vtw-national-data.json",
-                "vtw-regional-data.json",
+                "vtw-ages.json",
+                "vtw-nat-data.json",
+                "vtw-reg-data.json",
             ]
 
             save_to_json(datasets, filenames, "eu")
@@ -239,10 +259,22 @@ def transform():
     """run timing to defermine if full or chunk load/prosessing is best"""
     print("Run timing")
     print(datetime.datetime.now())
-    whole_time = timeit.timeit("transform_whole()", globals=globals(), number=3)
+    transform_chunk()
+    # whole_time = timeit.timeit("transform_whole()", globals=globals(), number=3)
     print(datetime.datetime.now())
-    chunked_time = timeit.timeit("transform_chunk()", globals=globals(), number=3)
-    print(datetime.datetime.now())
+    transform_whole()
+    # chunked_time = timeit.timeit("transform_chunk()", globals=globals(), number=3)
+    # print(datetime.datetime.now())
 
-    print(f"Whole file avg time: {whole_time/3:.3f}s")
-    print(f"Chunked time:   {chunked_time/3:.3f}s")
+    # print(f"Whole file avg time: {whole_time/3:.3f}s")
+    # print(f"Chunked time:   {chunked_time/3:.3f}s")
+
+    # print("profiling")
+    # lp = LineProfiler()
+    # lp_wrapper = lp(transform_whole())
+    # lp_wrapper()
+    # lp.print_stats()
+
+    # lp_wrapper = lp(transform_chunk())
+    # lp_wrapper()
+    # lp.print_stats()

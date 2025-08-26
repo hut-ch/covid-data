@@ -11,6 +11,7 @@ from utils import (
     get_unique_data,
     is_subset,
     load_json,
+    lookup_country_code,
     merge_rows,
     save_to_json,
 )
@@ -27,10 +28,12 @@ def import_file(file: str) -> pd.DataFrame:
         columns={
             "country_code": "territory_code",
             "geoId": "country_code",
-            "countriesAndTerritories": "country",
+            "countriesAndTerritories": "country_name",
+            "country": "country_name",
             "countryterritoryCode": "territory_code",
             "continentExp": "continent",
             "popData2020": "population",
+            "source": "source_name",
         },
         inplace=True,
     )
@@ -182,10 +185,14 @@ def create_columns(data: pd.DataFrame) -> pd.DataFrame:
         create_week_start_end(data, "year_week")
     if is_subset(data, ["day", "month", "year"]):
         data["date"] = pd.to_datetime(data[["year", "month", "day"]])
-    if "source" not in data.columns:
-        data["source"] = "Ministries of Health or National Public Health Institutes"
-    if "territory_code" not in data.columns:
-        data["territory_code"] = data["country"]
+    if "source_name" not in data.columns:
+        data["source_name"] = (
+            "Ministries of Health or National Public Health Institutes"
+        )
+
+    data["territory_code"] = data["territory_code"].fillna("continent")
+
+    data = lookup_country_code(data)
 
     required_cols = [
         "year_week",
@@ -210,6 +217,7 @@ def cleanup_columns(source_data: pd.DataFrame, level: str) -> pd.DataFrame:
     """
     common = [
         "territory_code",
+        "continent",
         "population",
         "cases",
         "cases_cumulative",
@@ -217,7 +225,10 @@ def cleanup_columns(source_data: pd.DataFrame, level: str) -> pd.DataFrame:
         "deaths",
         "deaths_cumulative",
         "deaths_notif_rate_14",
-        "source",
+        "source_name",
+        "country_name",
+        "country_match",
+        "country_score",
     ]
     weekly = ["year_week", "week_start", "week_end"]
     daily = ["date"]
@@ -238,12 +249,21 @@ def cleanup_columns(source_data: pd.DataFrame, level: str) -> pd.DataFrame:
 
 def create_datasets(
     data: pd.DataFrame,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Create required datasets from transformed data"""
 
     # create country lookup dataset
-    country_cols = ["country_code", "country", "territory_code", "continent"]
-    countries = get_unique_data(data, country_cols, ["territory_code"])
+    cols = ["country_code", "country_name", "territory_code", "continent"]
+    countries = data[data["territory_code"] != "continent"].copy()
+    countries = get_unique_data(countries, cols, ["territory_code"])
+
+    # create country lookup dataset
+    cols = ["continent"]
+    continents = get_unique_data(data, cols, ["continent"])
+
+    # create country lookup dataset
+    cols = ["source_name"]
+    sources = get_unique_data(data, cols, ["source_name"])
 
     # create daily metrics dataset
     daily = data[data["level"] == "daily"].copy()
@@ -256,7 +276,7 @@ def create_datasets(
     merge_key = ["year_week", "territory_code"]
     weekly = merge_rows(weekly, merge_key, aggregate=False)
 
-    return (countries, daily, weekly)
+    return (countries, continents, sources, daily, weekly)
 
 
 def transform():
@@ -264,7 +284,7 @@ def transform():
 
     print("\nTransforming EU National Case Deaths")
 
-    file_path = get_dir("raw-folder", "eu")
+    file_path = get_dir("RAW_FOLDER", "eu")
     available_files = file_check(file_path, "/nationalcasedeath*.json")
     full_data = pd.DataFrame()
 
@@ -280,7 +300,9 @@ def transform():
             full_data = combine_data(full_data, data, combine_method="union")
 
         print("Creating final datasets")
-        countries_lookup, daily_data, weekly_data = create_datasets(full_data)
+        country_lkup, cont_lkup, source_lkup, daily_data, weekly_data = create_datasets(
+            full_data
+        )
 
         print("Getting notification rates for daily")
         daily_data = get_rate_from_weekly(daily_data, weekly_data)
@@ -291,11 +313,13 @@ def transform():
 
         print("Outputting datasets")
         # save data
-        datasets = [countries_lookup, daily_data, weekly_data]
+        datasets = [country_lkup, cont_lkup, source_lkup, daily_data, weekly_data]
         filenames = [
-            "nd-countries.json",
-            "nd-daily-national-data.json",
-            "nd-weekly-national-data.json",
+            "nd-country.json",
+            "nd-continents.json",
+            "nd-sources.json",
+            "nd-daily-nat-data.json",
+            "nd-weekly-nat-data.json",
         ]
         save_to_json(datasets, filenames, "eu")
     else:

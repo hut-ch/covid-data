@@ -11,9 +11,8 @@ def get_set_config(file_path=".env"):
         dotenv.load_dotenv(env_loc)
     else:
         raise FileNotFoundError(
-            f"Envirnonment file {file_path} not found \
-                                please add to project! \
-                                Try renaming {file_path}-sample file"
+            f"""Envirnonment file {file_path} not found please add to project!
+            Try renaming {file_path}-example"""
         )
 
 
@@ -61,17 +60,24 @@ def get_uk_details():
     return [base_url, endpoints, location]
 
 
+def get_country_codes():
+    """get country codes lookup"""
+    base_url = "https://raw.githubusercontent.com/datasets/country-list/refs/heads/main/"  # noqa
+    endpoints = ["data.csv"]
+    location = "lookup"
+
+    return [base_url, endpoints, location]
+
+
 def get_details(location):
     """get endpoint details for all configuired
     regions and retun as a list"""
     if location == "eu":
-        details = [get_eu_details()]
+        details = [get_eu_details(), get_country_codes()]
     elif location == "uk":
-        details = [get_uk_details()]
+        details = [get_uk_details(), get_country_codes()]
     elif location == "all":
-        eu = [get_eu_details()]
-        uk = [get_uk_details()]
-        details = eu + uk
+        details = [get_eu_details(), get_uk_details(), get_country_codes()]
     else:
         return None
 

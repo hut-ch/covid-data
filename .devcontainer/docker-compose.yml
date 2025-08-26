@@ -1,7 +1,41 @@
 services:
   python:
+    container_name: python-covid-data
     build:
       context: ../
-      dockerfile: Dockerfile.dev     
-    volumes: 
+      dockerfile: Dockerfile.dev
+    volumes:
       - ../:/covid-data:cached
+    depends_on:
+      postgresdb:
+        condition: service_healthy
+
+  postgresdb:
+    container_name: postgres
+    image: postgres:17.6-alpine
+    hostname: postgres-covid
+    restart: unless-stopped
+    env_file:
+      - ../.env-dev
+    ports:
+      - '54001:5432'
+    volumes:
+      - ../data/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    container_name: pgadmin
+    hostname: pgadmin-covid
+    image: dpage/pgadmin4:9.7
+    restart: unless-stopped
+    env_file:
+      - ../.env-dev
+    ports:
+      - '54002:80'
+    depends_on:
+      postgresdb:
+        condition: service_healthy

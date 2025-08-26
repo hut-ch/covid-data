@@ -145,7 +145,7 @@ def save_to_json(datasets, file_names, folder):
     Returns:
         A Pandas Dataframe for movement indicator data.
     """
-    save_dir = get_dir("cleansed-data", folder)
+    save_dir = get_dir("CLEANSED_FOLDER", folder)
     create_dir(save_dir)
 
     for dataset, filename in zip(datasets, file_names):
@@ -159,7 +159,7 @@ def save_chunk_to_json(data_chunk: pd.DataFrame, filename, folder, first_chunk=F
     Append a chunk of data to a JSON array in a file.
     Maintains valid JSON structure by handling commas and brackets properly.
     """
-    save_dir = get_dir("cleansed-data", folder)
+    save_dir = get_dir("CLEANSED_FOLDER", folder)
     path = get_file(save_dir, filename)
 
     mode = "w" if first_chunk else "a"

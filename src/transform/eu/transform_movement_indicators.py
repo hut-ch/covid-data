@@ -14,6 +14,7 @@ from utils import (
     get_dir,
     get_unique_data,
     is_subset,
+    lookup_country_code,
     merge_rows,
     save_to_json,
 )
@@ -30,10 +31,12 @@ def import_file(file: str) -> pd.DataFrame:
     data.rename(
         columns={
             "CountryISO2Code": "country_code",
-            "Country": "country",
+            "Country": "country_name",
+            "country": "country_name",
             "LocationCode": "region_code",
             "geo_id_final": "region_code",
-            "LocationName": "region",
+            "LocationName": "region_name",
+            "region": "region_name",
             "NotificationRate": "notif_rate",
             "regional_rate_14": "regional_notif_rate",
             "NotificationRateGeoLevel": "notif_geo_level",
@@ -78,11 +81,13 @@ def create_columns(data: pd.DataFrame) -> pd.DataFrame:
         data["colour"] = data["colour"].str.lower()
     if "week" in data.columns:
         create_week_start_end(data, "week")
-    if is_subset(data.columns, ["country", "country_code"]):
-        data.loc[
-            (data["country"] == "Liechtenstein") & (data["country_code"] == "NA"),
-            "country_code",
-        ] = "LI"
+
+    data = lookup_country_code(data)
+    # if is_subset(data.columns, ["country_name", "country_code"]):
+    #    data.loc[
+    #        (data["country_name"] == "Liechtenstein") & (data["country_code"] == "NA"),
+    #        "country_code",
+    #    ] = "LI"
     return data
 
 
@@ -242,10 +247,12 @@ def create_datasets(
     """Create required datasets from transformed data"""
 
     # create region lookup dataset
-    regions = get_unique_data(data, ["region_code", "region"], ["region_code"])
+    regions = get_unique_data(data, ["region_code", "region_name"], ["region_code"])
 
     # create country lookup dataset
-    countries = get_unique_data(data, ["country_code", "country"], ["country_code"])
+    countries = get_unique_data(
+        data, ["country_code", "country_name"], ["country_code"]
+    )
 
     # create regional metrics dataset
     regional = cleanup_columns(data, "regional")
@@ -262,7 +269,7 @@ def transform():
 
     print("\nTransforming EU Movement Indicators")
 
-    file_path = get_dir("raw-folder", "eu")
+    file_path = get_dir("RAW_FOLDER", "eu")
     available_files = file_check(file_path, "/movementindicators*.json")
     all_data = pd.DataFrame()
 
@@ -291,9 +298,9 @@ def transform():
         datasets = [mi_regions, mi_countries, mi_regional, mi_national]
         filenames = [
             "mi-regions.json",
-            "mi-countries.json",
-            "mi-regional-data.json",
-            "mi-national-data.json",
+            "mi-country.json",
+            "mi-reg-data.json",
+            "mi-nat-data.json",
         ]
         save_to_json(datasets, filenames, "eu")
     else:
