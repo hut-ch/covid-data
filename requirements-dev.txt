@@ -1,4 +1,0 @@
-pre-commit
-line_profiler
-memory-profiler
-pytest

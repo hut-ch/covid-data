@@ -152,12 +152,14 @@ def create_datasets(
 
 
 # @profile
-def transform_chunk():
+def transform_chunk(env_vars: dict | None):
     """Runs transformation process for the National Case Death EU data"""
 
     print("\nTransforming EU Vaccine Tracker")
 
-    available_files = file_check(get_dir("RAW_FOLDER", "eu"), "/vaccine-tracker*.json")
+    available_files = file_check(
+        get_dir("RAW_FOLDER", "eu", env_vars), "/vaccine-tracker*.json"
+    )
 
     if available_files:
         print("Importing data and creating new columns")
@@ -200,18 +202,18 @@ def transform_chunk():
 
                 first_chunk = i == 0
 
-                print(f"Saving Chunk {i} {first_chunk}")
+                print(f"Saving Chunk {i}")
                 for dataset, filename in zip(datasets, filenames):
-                    save_chunk_to_json(dataset, filename, "eu", first_chunk)
+                    save_chunk_to_json(dataset, filename, "eu", env_vars, first_chunk)
 
 
 # @profile
-def transform_whole():
+def transform_whole(env_vars: dict | None):
     """Runs transformation process for the National Case Death EU data"""
 
     print("\nTransforming EU Vaccine Tracker")
 
-    file_path = get_dir("RAW_FOLDER", "eu")
+    file_path = get_dir("RAW_FOLDER", "eu", env_vars)
     available_files = file_check(file_path, "/vaccine-tracker*.json")
 
     if available_files:
@@ -252,17 +254,17 @@ def transform_whole():
                 "vtw-reg-data.json",
             ]
 
-            save_to_json(datasets, filenames, "eu")
+            save_to_json(datasets, filenames, "eu", env_vars)
 
 
-def transform():
+def transform(env_vars: dict | None):
     """run timing to defermine if full or chunk load/prosessing is best"""
     print("Run timing")
     print(datetime.datetime.now())
-    transform_chunk()
+    transform_chunk(env_vars)
     # whole_time = timeit.timeit("transform_whole()", globals=globals(), number=3)
     print(datetime.datetime.now())
-    transform_whole()
+    transform_whole(env_vars)
     # chunked_time = timeit.timeit("transform_chunk()", globals=globals(), number=3)
     # print(datetime.datetime.now())
 

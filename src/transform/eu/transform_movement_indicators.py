@@ -54,7 +54,7 @@ def import_file(file: str) -> pd.DataFrame:
     return data
 
 
-def create_columns(data: pd.DataFrame) -> pd.DataFrame:
+def create_columns(data: pd.DataFrame, env_vars: dict | None) -> pd.DataFrame:
     """
     Create additional columns
     """
@@ -82,12 +82,8 @@ def create_columns(data: pd.DataFrame) -> pd.DataFrame:
     if "week" in data.columns:
         create_week_start_end(data, "week")
 
-    data = lookup_country_code(data)
-    # if is_subset(data.columns, ["country_name", "country_code"]):
-    #    data.loc[
-    #        (data["country_name"] == "Liechtenstein") & (data["country_code"] == "NA"),
-    #        "country_code",
-    #    ] = "LI"
+    data = lookup_country_code(data, env_vars)
+
     return data
 
 
@@ -264,12 +260,12 @@ def create_datasets(
     return (regions, countries, regional, national)
 
 
-def transform():
+def transform(env_vars: dict | None):
     """Runs transformation process for the Movement Indicators EU data"""
 
     print("\nTransforming EU Movement Indicators")
 
-    file_path = get_dir("RAW_FOLDER", "eu")
+    file_path = get_dir("RAW_FOLDER", "eu", env_vars)
     available_files = file_check(file_path, "/movementindicators*.json")
     all_data = pd.DataFrame()
 
@@ -277,7 +273,7 @@ def transform():
         print("Importing data and creating new columns")
         for file in available_files:
             data = import_file(file)
-            data = create_columns(data)
+            data = create_columns(data, env_vars)
 
             all_data = combine_data(all_data, data, combine_method="union")
 
@@ -302,7 +298,7 @@ def transform():
             "mi-reg-data.json",
             "mi-nat-data.json",
         ]
-        save_to_json(datasets, filenames, "eu")
+        save_to_json(datasets, filenames, "eu", env_vars)
     else:
         print("Warning: EU Movement Indicators data not found")
 

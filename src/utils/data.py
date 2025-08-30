@@ -250,10 +250,10 @@ def perform_fuzzy_match(data: pd.DataFrame, mask: pd.Series, lookup: pd.DataFram
     return data
 
 
-def lookup_country_code(data: pd.DataFrame) -> pd.DataFrame:
+def lookup_country_code(data: pd.DataFrame, env_vars: dict | None) -> pd.DataFrame:
     """check the country name and return the 2 letter country code"""
 
-    file_path = get_dir("RAW_FOLDER", "lookup")
+    file_path = get_dir("RAW_FOLDER", "lookup", env_vars)
 
     if file_exists(file_path, "data.csv"):
         file = get_file(file_path, "data.csv")

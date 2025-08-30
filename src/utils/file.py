@@ -9,6 +9,8 @@ from zipfile import BadZipFile, ZipFile, is_zipfile
 import pandas as pd
 from tqdm import tqdm
 
+from .config import get_variable
+
 
 def is_json(data):
     """probably can be removed:check is dfata is json format"""
@@ -76,13 +78,14 @@ def unzip_files(filepath: str):
                 print(f"{zip_file} is not a valid zip file")
 
 
-def get_dir(root, folder):
-    """Get target directory from env file"""
-    root_folder = os.getenv(root)
+def get_dir(root: str, folder: str, env_vars: dict | None) -> str:
+    """Get target directory from env file or the root"""
+    root_folder = get_variable(root, env_vars)
+
     return get_file(root_folder, folder)
 
 
-def get_file(filepath, file):
+def get_file(filepath: str, file: str) -> str:
     """Gets file path"""
     return os.path.join(filepath, file)
 
@@ -132,7 +135,23 @@ def load_json(file: str) -> pd.DataFrame:
     return data
 
 
-def save_to_json(datasets, file_names, folder):
+def import_transformed_data(file: str) -> pd.DataFrame | None:
+    """Try loading the json file depending on format"""
+    try:
+        data = pd.read_json(file)
+        return data
+    except ValueError:
+        pass
+
+    try:
+        data = pd.read_json(file, lines=True)
+        return data
+    except ValueError as e:
+        print(f"unable to load data from file {file}", repr(e))
+        return None
+
+
+def save_to_json(datasets: list, file_names: list, folder: str, env_vars: dict | None):
     """
     Outputs the given Dataframes as json files into the
     cleansed-data folder with the given filename
@@ -145,7 +164,7 @@ def save_to_json(datasets, file_names, folder):
     Returns:
         A Pandas Dataframe for movement indicator data.
     """
-    save_dir = get_dir("CLEANSED_FOLDER", folder)
+    save_dir = get_dir("CLEANSED_FOLDER", folder, env_vars)
     create_dir(save_dir)
 
     for dataset, filename in zip(datasets, file_names):
@@ -154,12 +173,18 @@ def save_to_json(datasets, file_names, folder):
         dataset.to_json(file)
 
 
-def save_chunk_to_json(data_chunk: pd.DataFrame, filename, folder, first_chunk=False):
+def save_chunk_to_json(
+    data_chunk: pd.DataFrame,
+    filename: str,
+    folder: str,
+    env_vars: dict | None,
+    first_chunk=False,
+):
     """
     Append a chunk of data to a JSON array in a file.
     Maintains valid JSON structure by handling commas and brackets properly.
     """
-    save_dir = get_dir("CLEANSED_FOLDER", folder)
+    save_dir = get_dir("CLEANSED_FOLDER", folder, env_vars)
     path = get_file(save_dir, filename)
 
     mode = "w" if first_chunk else "a"
@@ -172,4 +197,5 @@ def save_chunk_to_json(data_chunk: pd.DataFrame, filename, folder, first_chunk=F
     #  else:
     #     f.write(",\n")  # separate chunks with commas
 
+    # json.dump(data_chunk, f, ensure_ascii=False)
     # json.dump(data_chunk, f, ensure_ascii=False)

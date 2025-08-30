@@ -2,7 +2,7 @@ apache-airflow-providers-fab==2.4.1
 asyncpg==0.30.0
 Flask-AppBuilder==4.6.3
 ijson==3.4.0
-pandas==2.3.2
+pandas==2.1.4
 psycopg2==2.9.10
 python-dotenv==1.1.1
 requests==2.32.4

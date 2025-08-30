@@ -35,6 +35,19 @@ def get_set_config(file_path=".env"):
     )
 
 
+def get_variable(name: str, env_vars: dict | None) -> str:
+    """get the environement variable value or the value form the passed in dictionary"""
+    if env_vars is not None:
+        value = env_vars[name]  # raises KeyError if missing
+    else:
+        value = os.getenv(name)
+        if value is None:
+            raise KeyError(
+                f"{name} not found in vars dictionary or environment variables"
+            )
+    return value
+
+
 def get_eu_details():
     """get endpoint details for EU region
     and retun as a list"""

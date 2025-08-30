@@ -13,30 +13,33 @@ def setup_values():
     get_set_config(".env")
 
 
-def process_uk_data():
-    """run just uk covid data pipelins"""
+def process_uk_data(env_vars: dict | None):
+    """run just uk covid data pipeline"""
     endpoints = get_details("uk")
-    extract.process_endpoints(endpoints)
-    transform.transform_uk()
-    load.load_uk()
+    extract.process_endpoints(endpoints, env_vars)
+    transform.transform_uk(env_vars)
+    load.create_schema(env_vars)
+    load.load_uk(env_vars)
 
 
-def process_eu_data():
-    """run just eu covid data pipelins"""
+def process_eu_data(env_vars: dict | None):
+    """run just eu covid data pipeline"""
     endpoints = get_details("eu")
-    extract.process_endpoints(endpoints)
-    transform.transform_eu()
-    load.load_eu(refresh=True)
+    extract.process_endpoints(endpoints, env_vars)
+    transform.transform_eu(env_vars)
+    load.create_schema(env_vars)
+    load.load_eu(env_vars, refresh=True)
 
 
-def process_all_data():
+def process_all_data(env_vars: dict | None):
     """run all region covid data pipelines"""
     endpoints = get_details("all")
-    extract.process_endpoints(endpoints)
-    transform.transform_all()
-    load.load_all()
+    extract.process_endpoints(endpoints, env_vars)
+    transform.transform_all(env_vars)
+    load.create_schema(env_vars)
+    load.load_all(env_vars)
 
 
 if __name__ == "__main__":
     setup_values()
-    process_all_data()
+    process_all_data(None)

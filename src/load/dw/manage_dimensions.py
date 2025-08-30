@@ -10,65 +10,14 @@ from sqlalchemy.exc import (
 )
 
 from utils import (
-    check_columns_exist,
+    check_data_exists,
     check_table_exists,
     create_temp_table,
-    get_unique_data,
-    is_subset,
+    file_check,
+    get_dir,
+    import_transformed_data,
+    validate_data_against_table,
 )
-
-
-def validate_data_againt_table(
-    data: pd.DataFrame,
-    db_engine: engine.Engine,
-    table_name: str,
-    schema: str,
-    return_index: bool = False,
-) -> tuple[pd.DataFrame | None, list | None, list | None, bool | None]:
-    """Validate required columns from table exist in the dataframe
-
-        Args:
-        data: DataFrame to validate
-        db_engine: SQLAlchemy engine
-        table_name: Target table name
-        schema: Database schema
-        return_index: Whether to return index flag for inserts
-
-    Returns:
-        Tuple of (validated DataFrame, key columns, update columns, index flag)
-        Index flag is only returned if return_index is True, else None
-    """
-
-    # get unique keys and other columns from table metadata
-    keys = get_unique_const_cols(db_engine, table_name, schema)
-    table_cols = get_other_cols(db_engine, table_name, schema)
-
-    # ensure that unique keys exist in data and set the index to keys
-    if is_subset(data.columns, keys):
-        just_key = list(data.columns) == keys
-        if not just_key:
-            data = data.set_index(keys)
-            insert_index = None if not return_index else True
-        else:
-            insert_index = None if not return_index else False
-
-    else:
-        print(f"Table keys {keys} not found in data {data.columns}")
-        return None, None, None, None
-
-    # check and return any non constraint columns that exist in the data
-    cols = check_columns_exist(data, table_cols, warn=False)[0]
-
-    if not cols:
-        print(f"Only {keys} found no other valid columns")
-
-    # de duplicate the data based on unique keys just as a
-    # final safety check to ensure data can be inserted
-    full_cols = keys + (cols if cols is not None else [])
-
-    data = get_unique_data(data, full_cols, keys)
-
-    return data, keys, cols, insert_index
 
 
 def insert_data(
@@ -79,7 +28,7 @@ def insert_data(
     if check_table_exists(db_engine, table_name, schema):
         # Check data is valid against table and cleanup data
 
-        valid_data, _, _, insert_index = validate_data_againt_table(
+        valid_data, _, _, insert_index = validate_data_against_table(
             data,
             db_engine,
             table_name,
@@ -164,7 +113,7 @@ def upsert_data(
         return
 
     # Check data is valid against table and cleanup data
-    valid_data = validate_data_againt_table(
+    valid_data = validate_data_against_table(
         data,
         db_engine,
         table_name,
@@ -194,89 +143,41 @@ def upsert_data(
             # perform the merge
             result = con.execute(query)
             con.execute(text(f"DROP TABLE IF EXISTS {schema}.{temp_table}"))
-            con.commit()
+            # con.commit()
             print(f"table {table_name} - {result.rowcount} rows updated")
     except DBAPIError as e:
         print("Merge failed ", e)
         with db_engine.connect() as con:
             con.execute(text(f"DROP TABLE IF EXISTS {schema}.{temp_table}"))
-            con.commit()
+            # con.commit()
         return
 
 
-def get_other_cols(db_engine: engine.Engine, table_name: str, schema: str) -> list:
-    """
-    get other columns from the table that arent part of the unique ontraint
+def process_dimension(
+    db_engine: engine.Engine, dim: str, schema: str, env_vars: dict | None
+):
+    """load data into dimension checking if data exists and merging accordingly"""
+    print(f"Processing {dim}")
+    if check_table_exists(db_engine, dim, schema):
+        file_path = get_dir("CLEANSED_FOLDER", "eu", env_vars)
+        file_search = dim[4:]  # remove dim_
+        dim_files = file_check(file_path, f"/*{file_search}*.json")
 
-    this will be checkd against the dataframe and used to inser/merge the data
-    """
+        if dim_files is None:
+            print(f"no files found for {dim}")
+            return
 
-    # Create bind parameters
-    params = {"schema": schema, "table_name": table_name}
+        for file in dim_files:
+            print(f"processing {file}")
 
-    query = text(
-        """
-    WITH key_cols AS (
-        SELECT
-            cu.column_name
-        FROM
-            information_schema.constraint_column_usage cu
-            INNER JOIN information_schema.table_constraints tc
-            ON cu.constraint_name = tc.constraint_name
-        WHERE
-            cu.table_name = :table_name
-            AND tc.constraint_type IN ('UNIQUE','PRIMARY KEY')
-            AND tc.table_schema = :schema
-    )
-    SELECT
-        cols.column_name
-    FROM
-        information_schema.columns cols
-        LEFT JOIN key_cols
-            ON cols.column_name = key_cols.column_name
-    WHERE
-        table_schema = :schema
-        AND table_name   = :table_name
-        AND cols.column_name NOT IN ('created_ts','updated_ts')
-        AND key_cols IS NULL
-    """
-    )
+            data = import_transformed_data(file)
 
-    with db_engine.connect() as con:
-        cols = con.execute(query, params)
+            if data is None:
+                return
 
-    return [col[0] for col in cols]
-
-
-def get_unique_const_cols(
-    db_engine: engine.Engine, table_name: str, schema: str
-) -> list:
-    """
-    get columns from the unique constraint on the table
-
-    this can them be used to ensure the dataframe's index is aligned
-    and the data is unique
-    """
-
-    # Create bind parameters
-    params = {"schema": schema, "table_name": table_name}
-
-    query = text(
-        """
-    SELECT
-        cu.column_name
-    FROM
-        information_schema.constraint_column_usage cu
-        INNER JOIN information_schema.table_constraints tc
-        ON cu.constraint_name = tc.constraint_name
-    WHERE
-        cu.table_name = :table_name
-        AND tc.constraint_type = 'UNIQUE'
-        AND tc.table_schema = :schema
-    """
-    )
-
-    with db_engine.connect() as con:
-        cols = con.execute(query, params)
-
-    return [col[0] for col in cols]
+            if check_data_exists(db_engine, schema, dim):
+                print("upsert")
+                upsert_data(db_engine, data, dim, schema)
+            else:
+                print("insert")
+                insert_data(db_engine, data, dim, schema)

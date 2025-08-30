@@ -1,13 +1,11 @@
 """main db util"""
 
-import os
 import uuid
 from typing import Optional
 
-import dotenv
 import pandas as pd
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, engine, schema, text
+from sqlalchemy import create_engine, engine, text
 from sqlalchemy.exc import (
     InternalError,
     NoSuchModuleError,
@@ -15,8 +13,13 @@ from sqlalchemy.exc import (
     ProgrammingError,
 )
 
+from .config import get_variable
+from .data import check_columns_exist, get_unique_data, is_subset
 
-def get_db_engine(schema_name: Optional[str] = None) -> Optional[engine.Engine] | None:
+
+def get_db_engine(
+    env_vars: dict | None, schema_name: Optional[str] = None
+) -> Optional[engine.Engine] | None:
     """Create a db engine to be used by other functions
 
     Args:
@@ -29,15 +32,17 @@ def get_db_engine(schema_name: Optional[str] = None) -> Optional[engine.Engine] 
     load_dotenv(".env")
 
     # get all the environmentt variable
-    host = os.getenv("DB_HOST")
-    port = os.getenv("DB_PORT")
-    user = os.getenv("DB_USER")
-    pw = os.getenv("DB_PASSWORD")
-    db = os.getenv("DB_DATABASE")
-    driver = os.getenv("DB_DRIVER")
+    host = get_variable("DB_HOST", env_vars)
+    port = get_variable("DB_PORT", env_vars)
+    user = get_variable("DB_USER", env_vars)
+    pw = get_variable("DB_PASSWORD", env_vars)
+    db = get_variable("DB_DATABASE", env_vars)
+    driver = get_variable("DB_DRIVER", env_vars)
 
     req_schema = (
-        schema_name if schema_name is not None else os.getenv("DB_SCHEMA", "public")
+        schema_name
+        if schema_name is not None
+        else (get_variable("DB_SCHEMA", env_vars) or "public")
     )
 
     if all([host, port, user, pw, db, driver]):
@@ -52,40 +57,6 @@ def get_db_engine(schema_name: Optional[str] = None) -> Optional[engine.Engine] 
             print("Invalid Driver", repr(e))
 
     return None
-
-
-def run_query_script(file: str):
-    """executes queries in given file"""
-
-    # Open and read the file as a single buffer
-    with open(file, "r", encoding="utf8") as f:
-        sql_tables = f.read()
-
-    queries = sql_tables.split("--#")
-
-    # create connection to db
-    db_engine = get_db_engine()
-
-    if db_engine is None:
-        print("Failed to create database engine")
-        return
-
-    # Use a single connection for all queries
-    with db_engine.connect() as con:
-        try:
-            for i, query in enumerate(queries, 1):
-                if query.strip():  # Skip empty queries
-                    try:
-                        query = text(query)
-                        # Begin a new transaction for each query
-                        with con.begin():
-                            con.execute(query)
-                            print(f"Query {i} executed successfully")
-                    except (ProgrammingError, InternalError) as e:
-                        print(f"Error executing query {i}:", str(e))
-                        print("Query:", query)
-        except OperationalError as e:
-            print("Database connection error:", str(e))
 
 
 def create_temp_table(
@@ -108,27 +79,6 @@ def create_temp_table(
     except (ProgrammingError, InternalError) as e:
         print("Couldn't create temp table for Update", e)
         return None
-
-
-def create_schema():
-    """Creates a new schema if it doesn't exist"""
-
-    dotenv.load_dotenv()
-    target_schema = os.getenv("DB_SCHEMA", "public")
-
-    db_engine = get_db_engine(schema_name="public")
-
-    if not db_engine:
-        print("Failed to create database engine")
-        return
-
-    try:
-        with db_engine.connect() as con:
-            con.execute(schema.CreateSchema(name=target_schema, if_not_exists=True))
-            con.commit()
-
-    except (InternalError, ProgrammingError) as e:
-        print("Failed to create schema", e)
 
 
 def check_table_exists(
@@ -157,3 +107,184 @@ def check_table_exists(
     except (InternalError, ProgrammingError) as e:
         print("failed to check for table", e)
         return False
+
+
+def check_data_exists(db_engine: engine.Engine, target_schema: str, dim: str) -> bool:
+    """Check if data already exists in table to determine data insertion method"""
+    with db_engine.connect() as con:
+        data_check = con.execute(
+            text(
+                f"""
+                SELECT COUNT(*)
+                FROM {target_schema}.{dim}
+                WHERE {dim}_key <> -1;
+                """  # nosec
+            )
+        ).first()[0]
+
+    return data_check > 0
+
+
+def run_query_script(file: str, env_vars: dict | None):
+    """executes queries in given file"""
+
+    # Open and read the file as a single buffer
+    with open(file, "r", encoding="utf8") as f:
+        sql_tables = f.read()
+
+    queries = sql_tables.split("--#")
+
+    # create connection to db
+    db_engine = get_db_engine(env_vars)
+
+    if db_engine is None:
+        print("Failed to create database engine")
+        return
+
+    # Use a single connection for all queries
+    with db_engine.connect() as con:
+        try:
+            for i, query in enumerate(queries, 1):
+                if query.strip():  # Skip empty queries
+                    try:
+                        query = text(query)
+                        # Begin a new transaction for each query
+                        with con.begin():
+                            con.execute(query)
+                            print(f"Query {i} executed successfully")
+                    except (ProgrammingError, InternalError) as e:
+                        print(f"Error executing query {i}:", str(e))
+                        print("Query:", query)
+        except OperationalError as e:
+            print("Database connection error:", str(e))
+
+
+def get_other_cols(db_engine: engine.Engine, table_name: str, schema: str) -> list:
+    """
+    get other columns from the table that arent part of the unique ontraint
+
+    this will be checkd against the dataframe and used to inser/merge the data
+    """
+
+    # Create bind parameters
+    params = {"schema": schema, "table_name": table_name}
+
+    query = text(
+        """
+    WITH key_cols AS (
+        SELECT
+            cu.column_name
+        FROM
+            information_schema.constraint_column_usage cu
+            INNER JOIN information_schema.table_constraints tc
+            ON cu.constraint_name = tc.constraint_name
+        WHERE
+            cu.table_name = :table_name
+            AND tc.constraint_type IN ('UNIQUE','PRIMARY KEY')
+            AND tc.table_schema = :schema
+    )
+    SELECT
+        cols.column_name
+    FROM
+        information_schema.columns cols
+        LEFT JOIN key_cols
+            ON cols.column_name = key_cols.column_name
+    WHERE
+        table_schema = :schema
+        AND table_name   = :table_name
+        AND cols.column_name NOT IN ('created_ts','updated_ts')
+        AND key_cols IS NULL
+    """
+    )
+
+    with db_engine.connect() as con:
+        cols = con.execute(query, params)
+
+    return [col[0] for col in cols]
+
+
+def get_unique_const_cols(
+    db_engine: engine.Engine, table_name: str, schema: str
+) -> list:
+    """
+    get columns from the unique constraint on the table
+
+    this can them be used to ensure the dataframe's index is aligned
+    and the data is unique
+    """
+
+    # Create bind parameters
+    params = {"schema": schema, "table_name": table_name}
+
+    query = text(
+        """
+    SELECT
+        cu.column_name
+    FROM
+        information_schema.constraint_column_usage cu
+        INNER JOIN information_schema.table_constraints tc
+        ON cu.constraint_name = tc.constraint_name
+    WHERE
+        cu.table_name = :table_name
+        AND tc.constraint_type = 'UNIQUE'
+        AND tc.table_schema = :schema
+    """
+    )
+
+    with db_engine.connect() as con:
+        cols = con.execute(query, params)
+
+    return [col[0] for col in cols]
+
+
+def validate_data_against_table(
+    data: pd.DataFrame,
+    db_engine: engine.Engine,
+    table_name: str,
+    schema: str,
+    return_index: bool = False,
+) -> tuple[pd.DataFrame | None, list | None, list | None, bool | None]:
+    """Validate required columns from table exist in the dataframe
+
+        Args:
+        data: DataFrame to validate
+        db_engine: SQLAlchemy engine
+        table_name: Target table name
+        schema: Database schema
+        return_index: Whether to return index flag for inserts
+
+    Returns:
+        Tuple of (validated DataFrame, key columns, update columns, index flag)
+        Index flag is only returned if return_index is True, else None
+    """
+
+    # get unique keys and other columns from table metadata
+    keys = get_unique_const_cols(db_engine, table_name, schema)
+    table_cols = get_other_cols(db_engine, table_name, schema)
+
+    # ensure that unique keys exist in data and set the index to keys
+    if is_subset(data.columns, keys):
+        just_key = list(data.columns) == keys
+        if not just_key:
+            data = data.set_index(keys)
+            insert_index = None if not return_index else True
+        else:
+            insert_index = None if not return_index else False
+
+    else:
+        print(f"Table keys {keys} not found in data {data.columns}")
+        return None, None, None, None
+
+    # check and return any non constraint columns that exist in the data
+    cols = check_columns_exist(data, table_cols, warn=False)[0]
+
+    if not cols:
+        print(f"Only {keys} found no other valid columns")
+
+    # de duplicate the data based on unique keys just as a
+    # final safety check to ensure data can be inserted
+    full_cols = keys + (cols if cols is not None else [])
+
+    data = get_unique_data(data, full_cols, keys)
+
+    return data, keys, cols, insert_index

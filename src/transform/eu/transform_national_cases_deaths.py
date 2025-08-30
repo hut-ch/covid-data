@@ -178,7 +178,7 @@ def get_rate_from_weekly(daily: pd.DataFrame, weekly: pd.DataFrame) -> pd.DataFr
     return merged
 
 
-def create_columns(data: pd.DataFrame) -> pd.DataFrame:
+def create_columns(data: pd.DataFrame, env_vars: dict | None) -> pd.DataFrame:
     """create required columns"""
 
     if "year_week" in data.columns:
@@ -192,7 +192,7 @@ def create_columns(data: pd.DataFrame) -> pd.DataFrame:
 
     data["territory_code"] = data["territory_code"].fillna("continent")
 
-    data = lookup_country_code(data)
+    data = lookup_country_code(data, env_vars)
 
     required_cols = [
         "year_week",
@@ -279,12 +279,12 @@ def create_datasets(
     return (countries, continents, sources, daily, weekly)
 
 
-def transform():
+def transform(env_vars: dict | None):
     """Runs transformation process for the National Case Death EU data"""
 
     print("\nTransforming EU National Case Deaths")
 
-    file_path = get_dir("RAW_FOLDER", "eu")
+    file_path = get_dir("RAW_FOLDER", "eu", env_vars)
     available_files = file_check(file_path, "/nationalcasedeath*.json")
     full_data = pd.DataFrame()
 
@@ -295,7 +295,7 @@ def transform():
             data = assign_level(data)
             if data is None:
                 continue
-            data = create_columns(data)
+            data = create_columns(data, env_vars)
 
             full_data = combine_data(full_data, data, combine_method="union")
 
@@ -321,7 +321,7 @@ def transform():
             "nd-daily-nat-data.json",
             "nd-weekly-nat-data.json",
         ]
-        save_to_json(datasets, filenames, "eu")
+        save_to_json(datasets, filenames, "eu", env_vars)
     else:
         print("Warning: EU Movement Indicators data not found")
 

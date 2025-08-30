@@ -56,7 +56,7 @@ def download_data(url: str, filepath: str, filename: str):
         print(f"Failed to write to {filepath}: {e}")
 
 
-def process_endpoints(regions: list):
+def process_endpoints(regions: list, env_vars: dict | None):
     """Main loop to fetch and save all endpoints."""
 
     print("###################################")
@@ -67,7 +67,7 @@ def process_endpoints(regions: list):
         print(f"\nDownloading {folder} files")
 
         # get the complete save path and create if it doesn't exist
-        save_dir = get_dir("RAW_FOLDER", folder)
+        save_dir = get_dir("RAW_FOLDER", folder, env_vars)
         create_dir(save_dir)
 
         for endpoint in endpoints:
