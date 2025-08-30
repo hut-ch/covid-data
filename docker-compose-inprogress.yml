@@ -1,0 +1,185 @@
+services:
+  postgres:
+    container_name: postgres
+    image: postgres:16-alpine
+    hostname: ${DB_HOST}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_DATABASE}
+    ports:
+      - '${DB_EXTERNAL_PORT}:5432'
+    volumes:
+      - ./.db:/var/lib/postgresql/data
+      - ./config/init-database.sh:/docker-entrypoint-initdb.d/init-database.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 30s
+      retries: 5
+
+  pgadmin:
+    container_name: pgadmin
+    hostname: ${PGADMIN_HOST}
+    image: dpage/pgadmin4:9.7
+    restart: unless-stopped
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_MAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PW}
+    ports:
+      - '${PGADMIN_EXTERNAL_PORT}:80'
+    volumes:
+      - ./config/servers-export.json:/pgadmin4/servers.json
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  airflow-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PW}@${DB_HOST}/${AIRFLOW_DB}
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate && \
+        airflow users create \
+          --username ${AIRFLOW_WEB_USER} \
+          --firstname Air \
+          --lastname Flow \
+          --role Admin \
+          --email airflow@example.com \
+          --password ${AIRFLOW_WEB_PW}
+    volumes:
+      - ./testing.env:/opt/airflow/covid-data/test.env
+      - ./src:/opt/airflow/covid-data/src   # mount source code
+      - ./data:/opt/airflow/covid-data/data   # mount data folder for extract and transformations
+      - ./src/dags:/opt/airflow/dags
+      - ./.airflow/logs:/opt/airflow/logs
+      - ./.airflow/plugins:/opt/airflow/plugins
+      - ./.airflow/config:/opt/airflow/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  airflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PW}@${DB_HOST}/${AIRFLOW_DB}
+      AIRFLOW__CORE__STORE_SERIALIZED_DAGS: "True"
+      AIRFLOW__CORE__STORE_DAG_CODE: "True"
+      AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: "20"
+      AIRFLOW__SCHEDULER__PARSE_DAGS_INTERVAL: "20"     # how often scheduler parses DAG files
+      AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "20"
+      AIRFLOW__API__WORKERS: "2"
+      AIRFLOW__CORE__MP_START_METHOD: fork
+    ports:
+      - "${AIRFLOW_WEB_PORT}:8080"
+    command: api-server
+    volumes:
+      - ./testing.env:/opt/airflow/covid-data/test.env
+      - ./src:/opt/airflow/covid-data/src   # mount source code
+      - ./data:/opt/airflow/covid-data/data   # mount data folder for extract and transformations
+      - ./src/dags:/opt/airflow/dags
+      - ./.airflow/logs:/opt/airflow/logs
+      - ./.airflow/plugins:/opt/airflow/plugins
+      - ./.airflow/config:/opt/airflow/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PW}@${DB_HOST}/${AIRFLOW_DB}
+      AIRFLOW__CORE__STORE_SERIALIZED_DAGS: "True"
+      AIRFLOW__CORE__STORE_DAG_CODE: "True"
+      AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: "20"
+      AIRFLOW__SCHEDULER__PARSE_DAGS_INTERVAL: "20"     # how often scheduler parses DAG files
+      AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "20"
+      AIRFLOW__CORE__MP_START_METHOD: fork
+    command: scheduler
+    volumes:
+      - ./testing.env:/opt/airflow/covid-data/test.env
+      - ./src:/opt/airflow/covid-data/src   # mount source code
+      - ./data:/opt/airflow/covid-data/data   # mount data folder for extract and transformations
+      - ./src/dags:/opt/airflow/dags
+      - ./.airflow/logs:/opt/airflow/logs
+      - ./.airflow/plugins:/opt/airflow/plugins
+      - ./.airflow/config:/opt/airflow/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-dag-processor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PW}@${DB_HOST}/${AIRFLOW_DB}
+      AIRFLOW__CORE__STORE_SERIALIZED_DAGS: "True"
+      AIRFLOW__CORE__STORE_DAG_CODE: "True"
+      AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: "20"
+      AIRFLOW__SCHEDULER__PARSE_DAGS_INTERVAL: "20"     # how often scheduler parses DAG files
+      AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "20"
+      AIRFLOW__CORE__MP_START_METHOD: fork
+    command: dag-processor
+    volumes:
+      - ./testing.env:/opt/airflow/covid-data/test.env
+      - ./src:/opt/airflow/covid-data/src
+      - ./src/dags:/opt/airflow/dags
+      - ./.airflow/logs:/opt/airflow/logs
+      - ./.airflow/plugins:/opt/airflow/plugins
+      - ./.airflow/config:/opt/airflow/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-triggerer:
+    command: triggerer
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PW}@${DB_HOST}/${AIRFLOW_DB}
+      AIRFLOW__CORE__STORE_SERIALIZED_DAGS: "True"
+      AIRFLOW__CORE__STORE_DAG_CODE: "True"
+      AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: "20"
+      AIRFLOW__SCHEDULER__PARSE_DAGS_INTERVAL: "20"     # how often scheduler parses DAG files
+      AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "20"
+      AIRFLOW__CORE__MP_START_METHOD: fork
+    depends_on:
+      postgres:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully

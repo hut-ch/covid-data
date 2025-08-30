@@ -32,29 +32,43 @@ services:
     ports:
       - '${PGADMIN_EXTERNAL_PORT}:80'
     volumes:
-      - ./config/servers.json:/pgadmin4/servers.json
+      - ./config/servers-export.json:/pgadmin4/servers.json
     depends_on:
       postgres:
         condition: service_healthy
 
-  airflow:
+  airflow-apiserver:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     environment:
-      IRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/src/dags
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PW}@${DB_HOST}/${AIRFLOW_DB}
+      AIRFLOW__CORE__STORE_SERIALIZED_DAGS: "True"
+      AIRFLOW__CORE__STORE_DAG_CODE: "True"
+      AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: "20"
+      AIRFLOW__SCHEDULER__PARSE_DAGS_INTERVAL: "20"     # how often scheduler parses DAG files
+      AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "20"
+      AIRFLOW__API__WORKERS: "2"
+      AIRFLOW__CORE__MP_START_METHOD: fork
       _AIRFLOW_DB_MIGRATE: 'true'
-      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: "True"
-    command: standalone
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_WEB_USER}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_WEB_PW}
+      _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
+    env_file:
+      - .env
+    command: standalone
     ports:
       - "${AIRFLOW_WEB_PORT}:8080"
     volumes:
-      - ./.env:/opt/airflow/.env
-      - ./src:/opt/airflow/src   # mount source code
-      - ./data:/opt/airflow/data   # mount data folder for extract and transformations
+      - ./.env:/opt/airflow/covid-data/test.env
+      - ./src:/opt/airflow/covid-data/src   # mount source code
+      - ./data:/opt/airflow/covid-data/data   # mount data folder for extract and transformations
+      - ./src/dags:/opt/airflow/dags
       - ./.airflow/logs:/opt/airflow/logs
       - ./.airflow/plugins:/opt/airflow/plugins
       - ./.airflow/config:/opt/airflow/config

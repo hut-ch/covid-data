@@ -1,6 +1,10 @@
 #project spoecific files
 scratchpad.py
 data/
+.airflow
+.db
+test_dag*
+.env-dev
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,56 +1,42 @@
-# Stage 1: Build dependencies and create wheels (optional, for faster installs)
-FROM python:3.13.5-slim-bookworm AS builder
+# Stage 1: Build dependencies and create wheels
+FROM apache/airflow:slim-3.0.5-python3.12 AS builder
 
-# Install system dependencies needed for building packages
-RUN apt-get update && apt-get install -y build-essential \
+USER root
+RUN apt-get update && apt-get install -y build-essential libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Set environment variables for this stage
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+USER airflow
+WORKDIR /opt/airflow
 
-WORKDIR /app
+COPY ./config/requirements.txt .
 
-# Copy dependency list
-COPY requirements.txt .
-
-# Upgrade pip and install dependencies, creating wheels for the next stage
+# Build wheels
 RUN pip install --upgrade pip \
-    && pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt \
-    && rm -rf /root/.cache/pip
+    && pip wheel --no-cache-dir --wheel-dir /home/airflow/wheels -r requirements.txt \
+    && rm -rf /home/airflow/.cache/pip
 
 # Stage 2: Production image
-FROM python:3.13.5-slim-bookworm
+FROM apache/airflow:slim-3.0.5-python3.12
 
-#  Set locale variables for the final image (if needed, otherwise remove)
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Copy wheels
+COPY --from=builder /home/airflow/wheels /home/airflow/wheels
 
-# Copy the built wheels from the builder stage
-COPY --from=builder /wheels /wheels
 
-# Copy requirements.txt again for installation within this stage
-COPY requirements.txt .
+WORKDIR /opt/airflow
+ENV PYTHONPATH="/opt/airflow/src:${PYTHONPATH}"
+COPY ./config/requirements.txt .
 
-# Install dependencies from the wheels
-RUN pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt \
-    && rm -rf /wheels
+USER root
+RUN apt-get update && apt-get install -y libpq-dev \
+    && chown -R airflow: /home/airflow/wheels \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create a custom user with UID 1234 and GID 1234
-RUN groupadd -g 1234 pygroup && \
-    useradd -m -u 1234 -g pygroup pyuser
+USER airflow
+RUN pip install --no-cache-dir --no-index --find-links=/home/airflow/wheels -r requirements.txt \
+    && rm -rf /home/airflow/wheels /home/airflow/.cache/pip
 
-# Switch to the custom user
-USER pyuser
-
-# Set the workdir
-WORKDIR /home/pyuser
-
-ENV PATH="/home/pyuser/.local/bin:$PATH"
-
-# Copy the app code
-# COPY . .
-
-# Set default command
-CMD ["sleep", "infinity"]
+# Use entrypoint from Airflow image
+ENTRYPOINT ["/entrypoint"]

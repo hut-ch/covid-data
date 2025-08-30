@@ -1,6 +1,11 @@
 """pipeline configuration data and settings"""
 
+import logging
+import os
+
 import dotenv
+
+logger = logging.getLogger(__name__)
 
 
 def get_set_config(file_path=".env"):
@@ -9,11 +14,25 @@ def get_set_config(file_path=".env"):
     env_loc = dotenv.find_dotenv(file_path)
     if env_loc != "":
         dotenv.load_dotenv(env_loc)
-    else:
-        raise FileNotFoundError(
-            f"""Envirnonment file {file_path} not found please add to project!
-            Try renaming {file_path}-example"""
-        )
+        logger.info("Environment variables loaded from %s", file_path)
+
+        # pick only folder + DB_ vars
+        # this is for airflow DAG runs if just running the
+        # scripts manually this is ignered and the vars are read directly
+        selected = {
+            k: v
+            for k, v in os.environ.items()
+            if k in {"DATA_FOLDER", "RAW_FOLDER", "CLEANSED_FOLDER"}
+            or k.startswith("DB_")
+        }
+
+        logger.info("Config passed to XCom: %s", list(selected.keys()))
+        return selected
+
+    raise FileNotFoundError(
+        f"""Envirnonment file {file_path} not found please add to project!
+        Try renaming {file_path}-example"""
+    )
 
 
 def get_eu_details():
@@ -45,9 +64,7 @@ def get_eu_details():
 def get_uk_details():
     """get endpoint details for UK region
     and retun as a list"""
-    base_url = (
-        "https://archive.ukhsa-dashboard.data.gov.uk/coronavirus-dashboard/"  # noqa
-    )
+    base_url = "https://archive.ukhsa-dashboard.data.gov.uk/coronavirus-dashboard/"
     endpoints = [
         "cases.zip",
         "deaths.zip",
@@ -62,7 +79,9 @@ def get_uk_details():
 
 def get_country_codes():
     """get country codes lookup"""
-    base_url = "https://raw.githubusercontent.com/datasets/country-list/refs/heads/main/"  # noqa
+    base_url = (
+        "https://raw.githubusercontent.com/datasets/country-list/refs/heads/main/"
+    )
     endpoints = ["data.csv"]
     location = "lookup"
 
