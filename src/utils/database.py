@@ -13,8 +13,11 @@ from sqlalchemy.exc import (
     ProgrammingError,
 )
 
-from .config import get_variable
-from .data import check_columns_exist, get_unique_data, is_subset
+from utils.config import get_variable
+from utils.data import check_columns_exist, get_unique_data, is_subset
+from utils.logs import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_db_engine(
@@ -52,9 +55,9 @@ def get_db_engine(
         try:
             return create_engine(db_url)
         except ConnectionError as e:
-            print("Unable to access database", repr(e))
+            logger.error("Unable to access database: %s", repr(e))
         except NoSuchModuleError as e:
-            print("Invalid Driver", repr(e))
+            logger.error("Invalid Driver: %s", repr(e))
 
     return None
 
@@ -64,6 +67,8 @@ def create_temp_table(
 ) -> str | None:
     """Create a temp table to hold data for the upsert"""
     temp_table = f"temp_{uuid.uuid4().hex[:10]}"
+
+    logger.info("Creating temp table %s", temp_table)
 
     try:
         with db_engine.connect() as con:
@@ -77,7 +82,7 @@ def create_temp_table(
             )
         return temp_table
     except (ProgrammingError, InternalError) as e:
-        print("Couldn't create temp table for Update", e)
+        logger.error("Couldn't create temp table for update: %s", repr(e))
         return None
 
 
@@ -105,7 +110,7 @@ def check_table_exists(
         with db_engine.connect() as con:
             return bool(con.execute(query, params).first()[0])
     except (InternalError, ProgrammingError) as e:
-        print("failed to check for table", e)
+        logger.error("failed to check for table: %s", repr(e))
         return False
 
 
@@ -138,7 +143,7 @@ def run_query_script(file: str, env_vars: dict | None):
     db_engine = get_db_engine(env_vars)
 
     if db_engine is None:
-        print("Failed to create database engine")
+        logger.error("Failed to create database engine")
         return
 
     # Use a single connection for all queries
@@ -150,13 +155,13 @@ def run_query_script(file: str, env_vars: dict | None):
                         query = text(query)
                         # Begin a new transaction for each query
                         with con.begin():
-                            con.execute(query)
-                            print(f"Query {i} executed successfully")
+                            result = con.execute(query)
+                            logger.info("Query %s executed successfully: %s", i, result)
                     except (ProgrammingError, InternalError) as e:
-                        print(f"Error executing query {i}:", str(e))
-                        print("Query:", query)
+                        logger.error("Error executing query %s: %s", i, repr(e))
+                        logger.error("Query: %s", query)
         except OperationalError as e:
-            print("Database connection error:", str(e))
+            logger.error("Database connection error: %s", str(e))
 
 
 def get_other_cols(db_engine: engine.Engine, table_name: str, schema: str) -> list:
@@ -272,14 +277,14 @@ def validate_data_against_table(
             insert_index = None if not return_index else False
 
     else:
-        print(f"Table keys {keys} not found in data {data.columns}")
+        logger.warning("Table keys %s not found in data %s", keys, data.columns)
         return None, None, None, None
 
     # check and return any non constraint columns that exist in the data
     cols = check_columns_exist(data, table_cols, warn=False)[0]
 
     if not cols:
-        print(f"Only {keys} found no other valid columns")
+        logger.info("Only %s found no other valid columns", keys)
 
     # de duplicate the data based on unique keys just as a
     # final safety check to ensure data can be inserted

@@ -1,6 +1,4 @@
-"""
-Main Transformation for Movement Indicators EU data
-"""
+"""Main Transformation for Movement Indicators EU data"""
 
 from datetime import timedelta
 
@@ -12,12 +10,15 @@ from utils import (
     create_week_start_end,
     file_check,
     get_dir,
+    get_logger,
     get_unique_data,
     is_subset,
     lookup_country_code,
     merge_rows,
     save_to_json,
 )
+
+logger = get_logger(__name__)
 
 
 def import_file(file: str) -> pd.DataFrame:
@@ -55,9 +56,10 @@ def import_file(file: str) -> pd.DataFrame:
 
 
 def create_columns(data: pd.DataFrame, env_vars: dict | None) -> pd.DataFrame:
-    """
-    Create additional columns
-    """
+    """Create additional columns"""
+
+    logger.info("Creating required missing columns")
+
     # Columns to check
     required_columns = [
         "test_geo_level",
@@ -99,6 +101,9 @@ def create_national_regional(data: pd.DataFrame, cols_exist: list | None):
         notifiaction
         vaccine
     """
+
+    logger.info("Creating missing national and regional columns")
+
     if cols_exist is None:
         return data
 
@@ -151,6 +156,9 @@ def cleanup_columns(source_data: pd.DataFrame, level: str) -> pd.DataFrame:
     Remove columns no longer required from the dataframe ready to be output.
     Depending on the level of the data different columns are removed
     """
+
+    logger.info("Removing columns no longer required")
+
     common = [
         "country_code",
         "colour",
@@ -209,6 +217,8 @@ def calc_national_cases_14(data: pd.DataFrame):
 
     """
 
+    logger.info("Calculating 14 day rate")
+
     # Create a previous week start column to use to lookup against
     data["week_start_prev"] = data["week_start"] + timedelta(weeks=-1)
 
@@ -242,18 +252,22 @@ def create_datasets(
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Create required datasets from transformed data"""
 
-    # create region lookup dataset
+    # create region
+    logger.info("Creating region lookup dataset")
     regions = get_unique_data(data, ["region_code", "region_name"], ["region_code"])
 
-    # create country lookup dataset
+    # create country
+    logger.info("Creating country lookup dataset")
     countries = get_unique_data(
         data, ["country_code", "country_name"], ["country_code"]
     )
 
-    # create regional metrics dataset
+    # create regiona metrics
+    logger.info("Creating regional metrics dataset")
     regional = cleanup_columns(data, "regional")
 
-    # create national metrics dataset
+    # create national metrics
+    logger.info("Creating national metrics dataset")
     national = cleanup_columns(data, "national")
     national = get_unique_data(national, national.columns, ["country_code", "week"])
 
@@ -263,21 +277,21 @@ def create_datasets(
 def transform(env_vars: dict | None):
     """Runs transformation process for the Movement Indicators EU data"""
 
-    print("\nTransforming EU Movement Indicators")
+    logger.info("Transforming EU Movement Indicators")
 
     file_path = get_dir("RAW_FOLDER", "eu", env_vars)
     available_files = file_check(file_path, "/movementindicators*.json")
     all_data = pd.DataFrame()
 
     if available_files:
-        print("Importing data and creating new columns")
         for file in available_files:
+            logger.info("Processing %s", file)
+
             data = import_file(file)
             data = create_columns(data, env_vars)
 
             all_data = combine_data(all_data, data, combine_method="union")
 
-        print("De-duplicating data")
         # De-duplicate data that is repeated across different files
         group_cols = ["country_code", "region_code", "week"]
         all_data = merge_rows(all_data, group_cols, aggregate=False)
@@ -285,11 +299,10 @@ def transform(env_vars: dict | None):
         # Create missing national_cases_14 column on merged data
         mi_data = calc_national_cases_14(all_data)
 
-        print("Creating final datasets")
+        logger.info("Creating final datasets")
         # Create final datasets from transformed data
         mi_regions, mi_countries, mi_regional, mi_national = create_datasets(mi_data)
 
-        print("Outputting datasets")
         # save data
         datasets = [mi_regions, mi_countries, mi_regional, mi_national]
         filenames = [
@@ -300,6 +313,6 @@ def transform(env_vars: dict | None):
         ]
         save_to_json(datasets, filenames, "eu", env_vars)
     else:
-        print("Warning: EU Movement Indicators data not found")
+        logger.warning("No EU Movement Indicators data found")
 
-    print("Completed EU Movement Indicators")
+    logger.info("Completed EU Movement Indicators")

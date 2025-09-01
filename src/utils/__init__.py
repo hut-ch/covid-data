@@ -1,4 +1,7 @@
-"""init file for all resuable functions"""
+"""
+General purpose functions related to configutration,
+database management, file management and data processing
+"""
 
 from .config import get_details, get_set_config, get_variable
 from .data import (
@@ -28,7 +31,7 @@ from .file import (
     import_transformed_data,
     load_json,
     save_chunk_to_json,
-    save_file,
     save_to_json,
     unzip_files,
 )
+from .logs import get_logger

@@ -8,6 +8,9 @@ import pandas as pd
 from thefuzz import process
 
 from utils.file import file_exists, get_dir, get_file
+from utils.logs import get_logger
+
+logger = get_logger(__name__)
 
 
 def check_columns_exist(
@@ -21,11 +24,13 @@ def check_columns_exist(
     Args:
         df: DataFrame to check against.
         *col_lists: Any number of lists (or None).
-        warn: If True, print a warning when columns are missing.
+        warn: If True, output a warning when columns are missing.
 
     Returns:
         A tuple of cleaned column lists (in same order as given).
     """
+    logger.info("Checking required columns exist in data")
+
     cleaned_lists: list[list | None] = []
     for col_list in col_lists:
         if col_list is None:
@@ -36,7 +41,7 @@ def check_columns_exist(
         missing = set(col_list) - set(data.columns)
 
         if missing and warn:
-            print(f"Warning: Removing columns not found in data: {missing}")
+            logger.warning("Removing columns not found in data: %s", missing)
 
         cleaned_lists.append(existing if existing else None)
 
@@ -66,14 +71,14 @@ def get_unique_data(data: pd.DataFrame, col_list: list | None, key: list | None)
     Returns:
         A Pandas Dataframe of unique data.
     """
+    logger.info("Removing duplicates from data")
+
     col_list, key = check_columns_exist(  # pylint: disable=unbalanced-tuple-unpacking
         data, col_list, key
     )
     unique_data = data[col_list] if col_list else data
 
-    test = unique_data.drop_duplicates(subset=key, keep="first")
-
-    return test
+    return unique_data.drop_duplicates(subset=key, keep="first")
 
 
 def first_non_null(x: pd.Series):
@@ -93,6 +98,7 @@ def merge_rows(
       2. Aggregating rows together and performing set aggregation based
       on column name conventions
     """
+
     # Create column to identify duplicates in data based on grouping columns provided
     data_dupes = (
         data.groupby(group_cols, dropna=False).size().reset_index(name="dupe_count")
@@ -114,6 +120,8 @@ def merge_rows(
     if aggregate:
         # Build column-specific aggregations, this is just a
         # boilerplate example and should be updated at a later date
+        logger.info("Merging rows my aggregating columns based on end of name")
+
         aggregations: dict[str, AggregationFunc] = {}
         for col in duplicated_data.columns:
             if col in group_cols:
@@ -138,6 +146,8 @@ def merge_rows(
         )
     else:
         # Apply "first non-null" row-wise in one go
+        logger.info("Merging rows my keeping first non NULL value")
+
         dedupe_data = (
             duplicated_data.groupby(group_cols, dropna=False).first().reset_index()
         )
@@ -159,10 +169,13 @@ def combine_data(*data: pd.DataFrame, combine_method: str = "union"):
     """
 
     if combine_method == "union":
+        logger.info("Unioning data")
         combined = pd.concat(data, axis=0, ignore_index=True)
     elif combine_method == "inner":
+        logger.info("Joining data where keys match - Inner")
         combined = pd.concat(data, axis=1, join=combine_method)
     elif combine_method == "left":
+        logger.info("Joining data where keys match - Left")
         combined = pd.concat(data, axis=1).reindex(data[0].index)
     else:
         raise ValueError(f"Unknown combination type: {type}")
@@ -175,6 +188,7 @@ def create_week_start_end(data: pd.DataFrame, week_col: str) -> pd.DataFrame:
     Create a week-start and week-end date columns
     based on input week column (YYYY-ww) or (YYYY-Www)
     """
+    logger.info("Creating week start and end date from year-week")
     if week_col in data.columns:
         split_cols = data[week_col].str.split("-", n=1, expand=True)
         data["year"] = split_cols[0].astype(int)
@@ -203,6 +217,8 @@ def camel_to_snake(name: str) -> str:
 
 def perform_fuzzy_match(data: pd.DataFrame, mask: pd.Series, lookup: pd.DataFrame):
     """run a fizzy match over country names data using the iso country lookup"""
+
+    logger.info("Running fuzzy match on country name to get country code")
 
     # Get distinct list of unmatched countries
     country_list = (
@@ -254,6 +270,8 @@ def lookup_country_code(data: pd.DataFrame, env_vars: dict | None) -> pd.DataFra
     """check the country name and return the 2 letter country code"""
 
     file_path = get_dir("RAW_FOLDER", "lookup", env_vars)
+
+    logger.info("Looking up country name to get country code")
 
     if file_exists(file_path, "data.csv"):
         file = get_file(file_path, "data.csv")

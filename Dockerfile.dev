@@ -27,7 +27,7 @@ COPY --from=builder /home/airflow/wheels /home/airflow/wheels
 
 
 WORKDIR /opt/airflow
-ENV PYTHONPATH="/opt/airflow/covid-data/src:${PYTHONPATH}"
+ENV PYTHONPATH="/opt/airflow/src:${PYTHONPATH}"
 COPY ./config/requirements.txt ./config/requirements-dev.txt ./
 
 USER root

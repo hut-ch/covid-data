@@ -8,6 +8,7 @@ from utils import (
     create_week_start_end,
     file_check,
     get_dir,
+    get_logger,
     get_unique_data,
     is_subset,
     load_json,
@@ -15,6 +16,8 @@ from utils import (
     merge_rows,
     save_to_json,
 )
+
+logger = get_logger(__name__)
 
 
 def import_file(file: str) -> pd.DataFrame:
@@ -45,6 +48,7 @@ def set_data_types(data: pd.DataFrame):
     """
     Dynamically set data types for columns
     """
+    logger.info("Setting datatypes")
 
     col_list = [
         "cases",
@@ -69,6 +73,8 @@ def set_data_types(data: pd.DataFrame):
 
 def assign_level(data: pd.DataFrame) -> pd.DataFrame | None:
     """check if the data loaded is weekly or daily"""
+    logger.info("Determining level of data (Daily or Weekly)")
+
     required_cols = ["year_week", "day"]
     actual_cols = check_columns_exist(data, required_cols, warn=False)[0]
 
@@ -77,7 +83,7 @@ def assign_level(data: pd.DataFrame) -> pd.DataFrame | None:
     elif is_subset(actual_cols, ["year_week"]):
         data["level"] = "weekly"
     else:
-        print("Cannot determine level of data")
+        logger.error("Cannot determine level of data, ending processing")
         return None
 
     return data
@@ -95,6 +101,7 @@ def create_cases_deaths(data: pd.DataFrame, cols: list | None):
         cumulative_count
         rate_14_day
     """
+    logger.info("Creating missing cases and deaths columns")
 
     if cols is None:
         return data
@@ -150,6 +157,8 @@ def get_rate_from_weekly(daily: pd.DataFrame, weekly: pd.DataFrame) -> pd.DataFr
     Retireve 14 day notification rates from the weekly data
     rather than recalculate based on the daily data
     """
+    logger.info("Pulling 14 date rate from wekly data for daily")
+
     daily.drop(
         ["cases_notif_rate_14", "deaths_notif_rate_14"], axis="columns", inplace=True
     )
@@ -180,6 +189,8 @@ def get_rate_from_weekly(daily: pd.DataFrame, weekly: pd.DataFrame) -> pd.DataFr
 
 def create_columns(data: pd.DataFrame, env_vars: dict | None) -> pd.DataFrame:
     """create required columns"""
+
+    logger.info("Creating required missing columns")
 
     if "year_week" in data.columns:
         create_week_start_end(data, "year_week")
@@ -215,6 +226,8 @@ def cleanup_columns(source_data: pd.DataFrame, level: str) -> pd.DataFrame:
     Remove columns no longer required from the dataframe ready to be output.
     Depending on the level of the data different columns are removed
     """
+    logger.info("Removing columns no longer required")
+
     common = [
         "territory_code",
         "continent",
@@ -252,24 +265,29 @@ def create_datasets(
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Create required datasets from transformed data"""
 
-    # create country lookup dataset
+    # create country
+    logger.info("Creating country lookup dataset")
     cols = ["country_code", "country_name", "territory_code", "continent"]
     countries = data[data["territory_code"] != "continent"].copy()
     countries = get_unique_data(countries, cols, ["territory_code"])
 
-    # create country lookup dataset
+    # create continent
+    logger.info("Creating continent lookup dataset")
     cols = ["continent"]
     continents = get_unique_data(data, cols, ["continent"])
 
-    # create country lookup dataset
+    # create source
+    logger.info("Creating source lookup dataset")
     cols = ["source_name"]
     sources = get_unique_data(data, cols, ["source_name"])
 
-    # create daily metrics dataset
+    # create daily metrics
+    logger.info("Creating daily metrics dataset")
     daily = data[data["level"] == "daily"].copy()
     daily = cleanup_columns(daily, "daily")
 
-    # create weekly metrics dataset
+    # create weekly metrics
+    logger.info("Creating weekly metrics dataset")
     weekly = data[data["level"] == "weekly"].copy()
     weekly = cleanup_columns(weekly, "weekly")
 
@@ -282,36 +300,36 @@ def create_datasets(
 def transform(env_vars: dict | None):
     """Runs transformation process for the National Case Death EU data"""
 
-    print("\nTransforming EU National Case Deaths")
+    logger.info("Transforming EU National Case Deaths")
 
     file_path = get_dir("RAW_FOLDER", "eu", env_vars)
     available_files = file_check(file_path, "/nationalcasedeath*.json")
     full_data = pd.DataFrame()
 
     if available_files:
-        print("Importing data and creating new columns")
         for file in available_files:
+            logger.info("Processing %s", file)
+
             data = import_file(file)
+
             data = assign_level(data)
             if data is None:
                 continue
+
             data = create_columns(data, env_vars)
 
             full_data = combine_data(full_data, data, combine_method="union")
 
-        print("Creating final datasets")
+        logger.info("Creating final datasets")
         country_lkup, cont_lkup, source_lkup, daily_data, weekly_data = create_datasets(
             full_data
         )
 
-        print("Getting notification rates for daily")
         daily_data = get_rate_from_weekly(daily_data, weekly_data)
 
-        print("Setting Datatypes")
         daily_data = set_data_types(daily_data)
         weekly_data = set_data_types(weekly_data)
 
-        print("Outputting datasets")
         # save data
         datasets = [country_lkup, cont_lkup, source_lkup, daily_data, weekly_data]
         filenames = [
@@ -323,6 +341,6 @@ def transform(env_vars: dict | None):
         ]
         save_to_json(datasets, filenames, "eu", env_vars)
     else:
-        print("Warning: EU Movement Indicators data not found")
+        logger.warning("No EU National Case Deaths data found")
 
-    print("Completed EU National Case Deaths")
+    logger.info("Completed EU National Case Deaths")

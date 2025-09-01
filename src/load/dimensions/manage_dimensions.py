@@ -1,4 +1,4 @@
-"""test"""
+"""Functions for managing dimension tables in the database"""
 
 import pandas as pd
 from sqlalchemy import engine, text
@@ -15,9 +15,12 @@ from utils import (
     create_temp_table,
     file_check,
     get_dir,
+    get_logger,
     import_transformed_data,
     validate_data_against_table,
 )
+
+logger = get_logger(__name__)
 
 
 def insert_data(
@@ -37,7 +40,7 @@ def insert_data(
         )
 
         if valid_data is None:
-            print("Data did not pass validation checks skipping")
+            logger.warning("Data did not pass validation checks skipping")
             return
 
         with db_engine.connect() as connection:
@@ -51,25 +54,30 @@ def insert_data(
                     method="multi",
                     index=insert_index,
                 )
-                print(f"{table_name} - {inserted_rows} rows inserted")
+                logger.info("%s - %s rows inserted", table_name, inserted_rows)
             except OperationalError as e:
-                print("Database connection error:", repr(e))
+                logger.error("Database connection error: %s", repr(e))
             except (ProgrammingError, IntegrityError) as e:
-                print("Error inserting Data: ", repr(e))
+                logger.error("Error inserting Data: %s", repr(e))
     else:
-        print(f"table {table_name} does not exist! Ensure table is in create script")
+        logger.error(
+            "Table %s does not exist! Ensure table is in create script", table_name
+        )
 
 
 def create_merge_query(
     schema: str, source: str, target: str, keys: list, cols: list
 ) -> str:
     """contruct the merge query from components"""
+
     source_table = schema + "." + source
     target_table = schema + "." + target
     merge_conditions = " AND ".join([f"src.{key} = tgt.{key}" for key in keys])
     updates = ", ".join([f"{col} = src.{col}" for col in cols])
     insert_cols = ", ".join(cols)
     insert_vals = ", ".join([f"src.{col}" for col in cols])
+
+    logger.info("Generating query for %s merge", target_table)
 
     query = text(
         """
@@ -109,7 +117,9 @@ def upsert_data(
     """Upsert/Merge data into target table"""
 
     if not check_table_exists(db_engine, table_name, schema):
-        print(f"Table {table_name} does not exist! Ensure table is in create script")
+        logger.error(
+            "Table %s does not exist! Ensure table is in create script", table_name
+        )
         return
 
     # Check data is valid against table and cleanup data
@@ -122,7 +132,7 @@ def upsert_data(
     )
 
     if any(x is None for x in valid_data[:2]):
-        print("Data did not pass validation checks skipping")
+        logger.warning("Data did not pass validation checks skipping")
         return
 
     update_data, keys, update_cols, _ = valid_data
@@ -143,13 +153,13 @@ def upsert_data(
             # perform the merge
             result = con.execute(query)
             con.execute(text(f"DROP TABLE IF EXISTS {schema}.{temp_table}"))
-            # con.commit()
-            print(f"table {table_name} - {result.rowcount} rows updated")
+
+            logger.info("table %s - %s rows updated", table_name, result.rowcount)
     except DBAPIError as e:
-        print("Merge failed ", e)
+        logger.error("Merge failed %s", e)
         with db_engine.connect() as con:
             con.execute(text(f"DROP TABLE IF EXISTS {schema}.{temp_table}"))
-            # con.commit()
+
         return
 
 
@@ -157,18 +167,18 @@ def process_dimension(
     db_engine: engine.Engine, dim: str, schema: str, env_vars: dict | None
 ):
     """load data into dimension checking if data exists and merging accordingly"""
-    print(f"Processing {dim}")
+    logger.info("Processing %s", dim)
     if check_table_exists(db_engine, dim, schema):
         file_path = get_dir("CLEANSED_FOLDER", "eu", env_vars)
         file_search = dim[4:]  # remove dim_
         dim_files = file_check(file_path, f"/*{file_search}*.json")
 
         if dim_files is None:
-            print(f"no files found for {dim}")
+            logger.warning("No files found for %s", dim)
             return
 
         for file in dim_files:
-            print(f"processing {file}")
+            logger.info("Processing %s", file)
 
             data = import_transformed_data(file)
 
@@ -176,8 +186,6 @@ def process_dimension(
                 return
 
             if check_data_exists(db_engine, schema, dim):
-                print("upsert")
                 upsert_data(db_engine, data, dim, schema)
             else:
-                print("insert")
                 insert_data(db_engine, data, dim, schema)

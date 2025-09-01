@@ -57,7 +57,7 @@
 				//pylint linter settings
 				"pylint.args": ["--max-line-length=88"],
 				"pylint.cwd": "${workspaceFolder}/src",
-				"pylint.ignorePatterns": ["__init__.py"]
+				"pylint.ignorePatterns": ["__init__.py", "dags/"]
 				
 			}
 		}

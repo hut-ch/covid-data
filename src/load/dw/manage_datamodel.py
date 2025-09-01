@@ -1,33 +1,35 @@
-"""update"""
+"""Functions for managing the schema and its objects"""
 
 from sqlalchemy import engine, schema, text
 from sqlalchemy.exc import InternalError, ProgrammingError
 
-from utils import file_exists, get_db_engine, get_variable, run_query_script
+from utils import file_exists, get_db_engine, get_logger, get_variable, run_query_script
+
+logger = get_logger(__name__)
 
 
 def drop_dimensional_model_eu(env_vars: dict | None):
     """run drop tables script EU"""
 
     if file_exists("./src/sql/", "drop_tables_eu.sql"):
-        print("Droping Tables")
+        logger.info("Droping Tables")
         run_query_script("./src/sql/drop_tables_eu.sql", env_vars)
     else:
-        print("Skipping Table Drop - No file")
+        logger.warning("Skipping Table Drop - No file found in /src/sql/")
 
 
 def create_dimensional_model_eu(env_vars: dict | None):
     """run create tables script EU"""
 
     if file_exists("./src/sql/", "create_tables_eu.sql"):
-        print("Creating Tables")
+        logger.info("Creating Tables")
         run_query_script("./src/sql/create_tables_eu.sql", env_vars)
     else:
-        print("Skipping Table Creation - No file")
+        logger.warning("Skipping Table Creation - No file found /src/sql/")
 
 
 def check_schema_exists(db_engine: engine.Engine, target_schema: str) -> bool:
-    """check table exists in db"""
+    """Checks if target schema exists in database"""
 
     # Create bind parameters
     params = {"schema": target_schema}
@@ -47,7 +49,7 @@ def check_schema_exists(db_engine: engine.Engine, target_schema: str) -> bool:
         with db_engine.connect() as con:
             return bool(con.execute(query, params).first()[0])
     except (InternalError, ProgrammingError) as e:
-        print("failed to check for schema", e)
+        logger.error("Failed to check for schema %s", repr(e))
         return False
 
 
@@ -59,7 +61,7 @@ def create_schema(env_vars: dict | None):
     db_engine = get_db_engine(env_vars=env_vars, schema_name="public")
 
     if not db_engine:
-        print("Failed to create database engine")
+        logger.error("Failed to create database engine")
         return
 
     if not check_schema_exists(db_engine, target_schema):
@@ -67,6 +69,4 @@ def create_schema(env_vars: dict | None):
             with db_engine.connect() as con:
                 con.execute(schema.CreateSchema(name=target_schema, if_not_exists=True))
         except (InternalError, ProgrammingError) as e:
-            print("Failed to create schema", e)
-            print("Failed to create schema", e)
-            print("Failed to create schema", e)
+            logger.error("Failed to create schema %s", repr(e))

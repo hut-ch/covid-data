@@ -1,11 +1,12 @@
 """pipeline configuration data and settings"""
 
-import logging
 import os
 
 import dotenv
 
-logger = logging.getLogger(__name__)
+from utils.logs import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_set_config(file_path=".env"):

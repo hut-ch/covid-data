@@ -2,12 +2,13 @@
 ahead for transformation steps"""
 
 import os
-from io import BytesIO
+import time
 
 import requests
-from tqdm import tqdm
 
-from utils import create_dir, get_dir, get_file, unzip_files
+from utils import create_dir, get_dir, get_file, get_logger, unzip_files
+
+logger = get_logger(__name__)
 
 
 def get_filename_from_endpoint(endpoint: str) -> str:
@@ -35,36 +36,69 @@ def download_data(url: str, filepath: str, filename: str):
         response.raise_for_status()
 
         total_size = int(response.headers.get("content-length", 0)) or None
-        chunk_size = 8192
-        data_buffer = BytesIO()
+        chunk_size = 1024 * 1024  # 1 MB
 
-        with open(filepath, "wb") as file, tqdm(
-            total=total_size,
-            unit="B",
-            unit_scale=True,
-            desc=f"Downloading {filename}",
-        ) as pbar:
+        start_time = time.time()
+        last_log = start_time
+        downloaded = 0
+        interval = 10
+
+        with open(filepath, "wb") as file:
             for chunk in response.iter_content(chunk_size=chunk_size):
-                if chunk:
-                    file.write(chunk)
-                    data_buffer.write(chunk)
-                    pbar.update(len(chunk))
+                if not chunk:
+                    continue
+
+                file.write(chunk)
+                downloaded += len(chunk)
+
+                # log every <interval> seconds downlad progress
+                now = time.time()
+                if now - last_log >= interval:
+                    elapsed = now - start_time
+                    if total_size:
+                        logger.info(
+                            "Downloading %s: %.1f%% (%s/%s) in %.1fs (%.2f MB/s)",
+                            filename,
+                            downloaded / total_size * 100,
+                            f"{downloaded/1024/1024:.1f}MB",
+                            f"{total_size/1024/1024:.1f}MB",
+                            elapsed,
+                            downloaded / elapsed if elapsed > 0 else 0 / 1024 / 1024,
+                        )
+                    else:
+                        logger.info(
+                            "Downloading %s: %s downloaded in %.1fs (%.2f MB/s)",
+                            filename,
+                            f"{downloaded/1024/1024:.1f}MB",
+                            elapsed,
+                            downloaded / elapsed if elapsed > 0 else 0 / 1024 / 1024,
+                        )
+                    last_log = now
+
+        # Final summary
+        elapsed = time.time() - start_time
+        logger.info(
+            "Finished downloading %s: %s in %.1fs (%.2f MB/s)",
+            filename,
+            f"{downloaded/1024/1024:.1f}MB",
+            elapsed,
+            (downloaded / elapsed) / (1024 * 1024),
+        )
 
     except requests.exceptions.RequestException as e:
-        print(f"Request error for {url}: {e}")
+        logger.error("Request error for %s: %s", url, e)
     except IOError as e:
-        print(f"Failed to write to {filepath}: {e}")
+        logger.error("Failed to write to %s: %s", filepath, e)
 
 
-def process_endpoints(regions: list, env_vars: dict | None):
+def process_endpoints(locations: list, env_vars: dict | None):
     """Main loop to fetch and save all endpoints."""
 
-    print("###################################")
-    print("Starting Extract")
+    logger.info("Starting Extract")
 
-    for region in regions:
-        base_url, endpoints, folder = region
-        print(f"\nDownloading {folder} files")
+    for location in locations:
+        base_url, endpoints, folder = location
+        logger.info("Downloading %s files", folder)
 
         # get the complete save path and create if it doesn't exist
         save_dir = get_dir("RAW_FOLDER", folder, env_vars)
@@ -78,8 +112,7 @@ def process_endpoints(regions: list, env_vars: dict | None):
             if not os.path.exists(filepath):
                 download_data(url, filepath, filename)
             else:
-                print(f"{filename} already exists")
-        print(f"\nExtracting {folder} files")
+                logger.info("%s already exists", filename)
         unzip_files(save_dir)
 
-    print("\nFinished Extract")
+    logger.info("Finished Extract")

@@ -1,7 +1,5 @@
 """Main transformation for Vaccine Tracker EU data"""
 
-import datetime
-
 import ijson
 import numpy as np
 import pandas as pd
@@ -12,12 +10,14 @@ from utils import (
     create_week_start_end,
     file_check,
     get_dir,
+    get_logger,
     get_unique_data,
     load_json,
     save_chunk_to_json,
     save_to_json,
 )
 
+logger = get_logger(__name__)
 # import timeit
 
 # from line_profiler import LineProfiler
@@ -76,6 +76,8 @@ def rename_cols(data: pd.DataFrame) -> pd.DataFrame:
 
 def set_level(data: pd.DataFrame):
     """determine if the row applies to a country or region"""
+    logger.info("Determining level of data (National or Regional)")
+
     required_cols = ["region_code", "country_code"]
     cols = check_columns_exist(data, required_cols)
     if cols:
@@ -107,6 +109,7 @@ def create_age_range(data: pd.DataFrame):
     Assign upper and lower age ranges based on age grouping column
     using assigned function
     """
+    logger.info("Creating age boundaries")
     cols = ["age_group"]
     valid_cols = check_columns_exist(data, cols)
     if valid_cols:
@@ -124,27 +127,33 @@ def create_datasets(
 ]:
     """Create required datasets from transformed data"""
 
-    # create country lookup dataset
+    # create country
+    logger.info("Creating country lookup dataset")
     cols = ["country_code"]
     countries = get_unique_data(data, cols, ["country_code"])
 
-    # create region lookup dataset
+    # create region
+    logger.info("Creating region lookup dataset")
     cols = ["country_code", "region_code"]
     regions = get_unique_data(data, cols, ["region_code"])
 
-    # create vaccine lookup dataset
+    # create vaccine
+    logger.info("Creating vaccine lookup dataset")
     cols = ["vaccine_code"]
     vaccines = get_unique_data(data, cols, ["vaccine_code"])
 
-    # create age lookup dataset
+    # create age
+    logger.info("Creating age lookup dataset")
     cols = ["age_group", "age_lower_limit", "age_upper_limit"]
     ages = get_unique_data(data, cols, ["age_group"])
 
-    # create national metrics dataset
+    # create bational metrics
+    logger.info("Creating national metrics dataset")
     national = data[data["level"] == "country"].copy()
     national = national.drop(columns=["year", "week", "level", "region_code"])
 
-    # create regional metrics dataset
+    # create regional metrics
+    logger.info("Creating regional metrics dataset")
     regional = data[data["level"] == "region"].copy()
     regional = regional.drop(columns=["year", "week", "level"])
 
@@ -155,23 +164,24 @@ def create_datasets(
 def transform_chunk(env_vars: dict | None):
     """Runs transformation process for the National Case Death EU data"""
 
-    print("\nTransforming EU Vaccine Tracker")
+    logger.info("Transforming EU Vaccine Tracker - in chunks")
 
     available_files = file_check(
         get_dir("RAW_FOLDER", "eu", env_vars), "/vaccine-tracker*.json"
     )
 
     if available_files:
-        print("Importing data and creating new columns")
         for file in available_files:
+            logger.info("Processing %s", file)
             for i, chunk in enumerate(load_json_chunk(file, 50000)):
-                print(f"Processing Chunk {i}")
+                logger.info("Processing Chunk %s", i)
+
                 chunk = rename_cols(chunk)
                 chunk = set_level(chunk)
                 chunk = create_age_range(chunk)
                 chunk = create_week_start_end(chunk, "year_week")
 
-                print(f"Creating Final Datasets for Chunk {i}")
+                logger.info("Creating Final Datasets for Chunk %s", i)
 
                 (
                     countries_lookup,
@@ -202,7 +212,6 @@ def transform_chunk(env_vars: dict | None):
 
                 first_chunk = i == 0
 
-                print(f"Saving Chunk {i}")
                 for dataset, filename in zip(datasets, filenames):
                     save_chunk_to_json(dataset, filename, "eu", env_vars, first_chunk)
 
@@ -211,21 +220,23 @@ def transform_chunk(env_vars: dict | None):
 def transform_whole(env_vars: dict | None):
     """Runs transformation process for the National Case Death EU data"""
 
-    print("\nTransforming EU Vaccine Tracker")
+    logger.info("Transforming EU Vaccine Tracker")
 
     file_path = get_dir("RAW_FOLDER", "eu", env_vars)
     available_files = file_check(file_path, "/vaccine-tracker*.json")
 
     if available_files:
         for file in available_files:
-            print("Importing data and creating new columns")
+            logger.info("Processing %s", file)
+
             data = load_json(file)
+
             data = rename_cols(data)
             data = set_level(data)
             data = create_age_range(data)
             data = create_week_start_end(data, "year_week")
 
-            print("Creating Final Datasets")
+            logger.info("Creating Final Datasets")
 
             (
                 countries_lookup,
@@ -259,19 +270,18 @@ def transform_whole(env_vars: dict | None):
 
 def transform(env_vars: dict | None):
     """run timing to defermine if full or chunk load/prosessing is best"""
-    print("Run timing")
-    print(datetime.datetime.now())
+
     transform_chunk(env_vars)
     # whole_time = timeit.timeit("transform_whole()", globals=globals(), number=3)
-    print(datetime.datetime.now())
+
     transform_whole(env_vars)
     # chunked_time = timeit.timeit("transform_chunk()", globals=globals(), number=3)
-    # print(datetime.datetime.now())
+    # logger.info(datetime.datetime.now())
 
-    # print(f"Whole file avg time: {whole_time/3:.3f}s")
-    # print(f"Chunked time:   {chunked_time/3:.3f}s")
+    # logger.info("Whole file avg time: %ss", whole_time/3:.3f)
+    # logger.info("Chunked time: %ss", chunked_time/3:.3f)
 
-    # print("profiling")
+    # logger.info("profiling")
     # lp = LineProfiler()
     # lp_wrapper = lp(transform_whole())
     # lp_wrapper()

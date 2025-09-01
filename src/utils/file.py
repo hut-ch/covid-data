@@ -3,36 +3,15 @@
 import glob
 import json
 import os
-from io import BytesIO
+import time
 from zipfile import BadZipFile, ZipFile, is_zipfile
 
 import pandas as pd
-from tqdm import tqdm
 
-from .config import get_variable
+from utils.config import get_variable
+from utils.logs import get_logger
 
-
-def is_json(data):
-    """probably can be removed:check is dfata is json format"""
-    try:
-        json.dumps(data)
-        return True
-    except TypeError:
-        return False
-
-
-def save_file(data, filepath: str):
-    """probably can be removed: save a json or zip file"""
-    try:
-        if is_json(data):
-            with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-        elif is_zipfile(BytesIO(data)):
-            with open(filepath, mode="wb") as f:
-                f.write(data)
-        print(f"Saved: {filepath}")
-    except IOError as e:
-        print(f"Failed to write to {filepath}: {e}")
+logger = get_logger(__name__)
 
 
 def unzip_files(filepath: str):
@@ -51,31 +30,57 @@ def unzip_files(filepath: str):
     ]
 
     if zip_files:
+        logger.info("Extracting files from %s", filepath)
         for zip_file in zip_files:
             zip_path = get_file(filepath, zip_file)
 
             if is_zipfile(zip_path):
                 try:
                     with ZipFile(zip_path, mode="r") as archive:
-                        not_extracted = [
+                        to_extract = [
                             f
                             for f in archive.namelist()
                             if not os.path.exists(os.path.join(filepath, f))
                         ]
 
-                        if not_extracted:
-                            for member in tqdm(
-                                not_extracted,
-                                desc=f"Extracting {zip_file}",
-                                unit="file",
-                            ):
-                                archive.extract(member, filepath)
-                        else:
-                            print(f"{zip_file} already extracted")
+                        if not to_extract:
+                            logger.info("%s already extracted", zip_file)
+                            continue
+
+                        start_time = time.time()
+                        last_log = start_time
+                        extracted_count = 0
+                        interval = 15
+
+                        for member in to_extract:
+                            archive.extract(member, filepath)
+                            extracted_count += 1
+
+                            now = time.time()
+                            if now - last_log >= interval:
+                                logger.info(
+                                    "Extracting %s: %d/%d files extracted in %.1fs",
+                                    zip_file,
+                                    extracted_count,
+                                    len(to_extract),
+                                    now - start_time,
+                                )
+                                last_log = now
+
+                        # Final summary
+                        elapsed = time.time() - start_time
+                        logger.info(
+                            "Finished extracting %s: %d/%d files in %.1fs",
+                            zip_file,
+                            extracted_count,
+                            len(to_extract),
+                            elapsed,
+                        )
+
                 except BadZipFile:
-                    print(f"Error extracting zip file: {zip_file}")
+                    logger.error("Error extracting zip file: %s", zip_file)
             else:
-                print(f"{zip_file} is not a valid zip file")
+                logger.warning("%s is not a valid zip file", zip_file)
 
 
 def get_dir(root: str, folder: str, env_vars: dict | None) -> str:
@@ -147,7 +152,7 @@ def import_transformed_data(file: str) -> pd.DataFrame | None:
         data = pd.read_json(file, lines=True)
         return data
     except ValueError as e:
-        print(f"unable to load data from file {file}", repr(e))
+        logger.error("Unable to load data from file %s %s", file, repr(e))
         return None
 
 
@@ -168,6 +173,8 @@ def save_to_json(datasets: list, file_names: list, folder: str, env_vars: dict |
     create_dir(save_dir)
 
     for dataset, filename in zip(datasets, file_names):
+        logger.info("Saving File %s", filename)
+
         file = get_file(save_dir, filename)
         dataset.reset_index(drop=True, inplace=True)
         dataset.to_json(file)
@@ -184,18 +191,11 @@ def save_chunk_to_json(
     Append a chunk of data to a JSON array in a file.
     Maintains valid JSON structure by handling commas and brackets properly.
     """
+    logger.info("Saving chunk to file %s", filename)
+
     save_dir = get_dir("CLEANSED_FOLDER", folder, env_vars)
     path = get_file(save_dir, filename)
 
     mode = "w" if first_chunk else "a"
 
     data_chunk.to_json(path, mode=mode, orient="records", lines=True)
-
-    # with open(path, mode, encoding="utf-8") as f:
-    #    if first_chunk:
-    #       f.write("[")
-    #  else:
-    #     f.write(",\n")  # separate chunks with commas
-
-    # json.dump(data_chunk, f, ensure_ascii=False)
-    # json.dump(data_chunk, f, ensure_ascii=False)
