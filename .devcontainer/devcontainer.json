@@ -1,7 +1,7 @@
 {
 	"name": "DataEngineering",
 	"dockerComposeFile": [
-		"../docker-compose.yml", //change this location to change which compose the dev environment will use
+		"../docker-compose-dev.yml", //change this location to change which compose the dev environment will use
 		"docker-compose.yml"
 	],
 	"service": "airflow", //change this to the name of the service in the compose file to call
@@ -22,8 +22,6 @@
 				"ms-python.pylint",
 				"ms-python.black-formatter",
 				"ms-python.isort",
-				"mechatroner.rainbow-csv",
-				"gerda.vscode-parquet-viewer",
 				"GitHub.copilot-chat"
 			],
 			"settings": {
@@ -50,14 +48,17 @@
 				"mypy-type-checker.args": [
 					"-generated-members=pandas.*"
 				],
-				//"mypy-type-checker.importStrategy":"fromEnvironment",
-				//flake* linter settings
+				"mypy-type-checker.ignorePatterns":  ["__init__.py"],
+				//flake8 linter settings
 				"flake8.args": [
 					"--max-line-length=88"
 				],
-				//"pylint.importStrategy": "fromEnvironment",
+				"flake8.ignorePatterns": ["__init__.py"],
+				//pylint linter settings
 				"pylint.args": ["--max-line-length=88"],
-				"pylint.cwd": "${workspaceFolder}/src"
+				"pylint.cwd": "${workspaceFolder}/src",
+				"pylint.ignorePatterns": ["__init__.py"]
+				
 			}
 		}
 	}

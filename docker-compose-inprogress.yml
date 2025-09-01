@@ -73,7 +73,8 @@ services:
   airflow:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
+    image: hut-ch/covid-airflow-api-server-dev
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
@@ -107,6 +108,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: hut-ch/covid-airflow-scheduler-dev
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
@@ -137,6 +139,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: hut-ch/covid-airflow-dag-processor-dev
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
@@ -167,6 +170,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: hut-ch/covid-airflow-triggerer-dev
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags

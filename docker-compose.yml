@@ -41,6 +41,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: hut-ch/covid-airflow
     environment:
       IRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/src/dags
