@@ -32,8 +32,8 @@ See [Prerequisites](#prerequisites) and [Quickstart](#quickstart) on how to depl
     - [EU Datasets](/docs/eu-datasets.md)
     - [UK Datasets](/docs/uk-datasets.md)
 1. ETL Pipeline
-    - [EU](/docs/eu_pipeline.md)
-    - [UK](/docs/uk_pipeline.md)
+    - [EU](/docs/eu-pipeline.md)
+    - [UK](/docs/uk-pipeline.md)
 1. Cusomisiation
     - [Environment Variables](/docs/environment-variables.md)
     - PG Admin
