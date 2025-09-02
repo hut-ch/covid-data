@@ -15,10 +15,11 @@ services:
     volumes:
       - ./.db:/var/lib/postgresql/data
       - ./config/init-database.sh:/docker-entrypoint-initdb.d/init-database.sh
+      - ./config/metabase_db.dmp:/backup/metabase_db.dmp
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
-      timeout: 30s
+      timeout: 60s
       retries: 5
 
   pgadmin:
@@ -32,7 +33,7 @@ services:
     ports:
       - '${PGADMIN_EXTERNAL_PORT}:80'
     volumes:
-      - ./config/servers.json:/pgadmin4/servers.json
+      - ./config/pgadmin-servers.json:/pgadmin4/servers.json
     depends_on:
       postgres:
         condition: service_healthy
@@ -42,6 +43,7 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     image: hut-ch/covid-airflow-dev
+    container_name: airflow-standalone
     environment:
       IRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/src/dags
@@ -59,6 +61,28 @@ services:
       - ./.airflow/logs:/opt/airflow/logs
       - ./.airflow/plugins:/opt/airflow/plugins
       - ./.airflow/config:/opt/airflow/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  metabase:
+    image: metabase/metabase:v0.56.4
+    container_name: metabase
+    hostname: metabase
+    ports:
+      - 53004:3000
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: ${METABASE_DB}
+      MB_DB_PORT: 5432
+      MB_DB_USER: ${METABASE_DB_USER}
+      MB_DB_PASS: ${METABASE_DB_PW}
+      MB_DB_HOST: ${DB_HOST}
+    healthcheck:
+      test: curl --fail -I http://localhost:3000/api/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
     depends_on:
       postgres:
         condition: service_healthy
