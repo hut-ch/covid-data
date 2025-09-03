@@ -206,8 +206,8 @@ def transform_chunk(env_vars: dict | None):
                     "vt-regions.json",
                     "vt-vaccines.json",
                     "vt-ages.json",
-                    "vt-nat-data.json",
-                    "vt-reg-data.json",
+                    "vt-vaccine_tracker_country.json",
+                    "vt-vaccine_tracker_region.json",
                 ]
 
                 first_chunk = i == 0
@@ -261,8 +261,8 @@ def transform_whole(env_vars: dict | None):
                 "vtw-regions.json",
                 "vtw-vaccines.json",
                 "vtw-ages.json",
-                "vtw-nat-data.json",
-                "vtw-reg-data.json",
+                "vtw-vaccinations_country.json",
+                "vtw-vaccinations_region.json",
             ]
 
             save_to_json(datasets, filenames, "eu", env_vars)

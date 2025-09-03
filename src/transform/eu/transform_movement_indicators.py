@@ -308,8 +308,8 @@ def transform(env_vars: dict | None):
         filenames = [
             "mi-regions.json",
             "mi-country.json",
-            "mi-reg-data.json",
-            "mi-nat-data.json",
+            "mi-movement_indicators_region.json",
+            "mi-movement_indicators_country.json",
         ]
         save_to_json(datasets, filenames, "eu", env_vars)
     else:

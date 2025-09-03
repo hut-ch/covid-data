@@ -1,6 +1,7 @@
 """Manage EU specific Facts"""
 
-from utils import get_logger, get_variable
+from utils import get_logger, get_variable, get_foreign_key
+from load.dw import maintain_table, get_dimension_keys
 
 logger = get_logger(__name__)
 
@@ -10,7 +11,7 @@ def maintain_eu_facts(env_vars: dict | None):
 
     logger.info("Starting EU Fact Load")
 
-    # db_engine = get_db_engine(env_vars)
+    db_engine = get_db_engine(env_vars)
     target_schema = get_variable("DB_SCHEMA", env_vars) or "public"
 
     facts = [
@@ -23,6 +24,6 @@ def maintain_eu_facts(env_vars: dict | None):
     ]
 
     for fact in facts:
-        logger.info("Procsessing %s into %s", fact, target_schema)
+        maintain_table(db_engine, fact, target_schema, "fact", "eu", env_vars)
 
     logger.info("Finished EU Fact Load")

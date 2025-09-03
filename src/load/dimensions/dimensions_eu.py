@@ -2,7 +2,7 @@
 
 from utils import get_db_engine, get_logger, get_variable
 
-from .manage_dimensions import process_dimension
+from load.dw import maintian_table
 
 logger = get_logger(__name__)
 
@@ -25,7 +25,7 @@ def maintain_eu_dims(env_vars: dict | None):
     ]
 
     for dim in dimensions:
-        process_dimension(db_engine, dim, target_schema, env_vars)
+        maintain_table(db_engine, dim, target_schema, "dimension", "eu", env_vars)
 
 
 def dim_age(env_vars: dict | None):
@@ -34,7 +34,7 @@ def dim_age(env_vars: dict | None):
     db_engine = get_db_engine(env_vars)
     target_schema = get_variable("DB_SCHEMA", env_vars) or "public"
 
-    process_dimension(db_engine, "dim_age", target_schema, env_vars)
+    maintain_table(db_engine, "dim_age", target_schema, "dimension", "eu", env_vars)
 
 
 def dim_country(env_vars: dict | None):
@@ -43,7 +43,7 @@ def dim_country(env_vars: dict | None):
     db_engine = get_db_engine(env_vars)
     target_schema = get_variable("DB_SCHEMA", env_vars) or "public"
 
-    process_dimension(db_engine, "dim_country", target_schema, env_vars)
+    maintain_table(db_engine, "dim_country", target_schema, "dimension", "eu", env_vars)
 
 
 def dim_region(env_vars: dict | None):
@@ -52,7 +52,7 @@ def dim_region(env_vars: dict | None):
     db_engine = get_db_engine(env_vars)
     target_schema = get_variable("DB_SCHEMA", env_vars) or "public"
 
-    process_dimension(db_engine, "dim_region", target_schema, env_vars)
+    maintain_table(db_engine, "dim_region", target_schema, "dimension", "eu", env_vars)
 
 
 def dim_source(env_vars: dict | None):
@@ -61,7 +61,7 @@ def dim_source(env_vars: dict | None):
     db_engine = get_db_engine(env_vars)
     target_schema = get_variable("DB_SCHEMA", env_vars) or "public"
 
-    process_dimension(db_engine, "dim_source", target_schema, env_vars)
+    maintain_table(db_engine, "dim_source", target_schema, "dimension", env_vars)
 
 
 def dim_status(env_vars: dict | None):
@@ -70,7 +70,7 @@ def dim_status(env_vars: dict | None):
     db_engine = get_db_engine(env_vars)
     target_schema = get_variable("DB_SCHEMA", env_vars) or "public"
 
-    process_dimension(db_engine, "dim_status", target_schema, env_vars)
+    maintain_table(db_engine, "dim_status", target_schema, "dimension", "eu", env_vars)
 
 
 def dim_vaccine(env_vars: dict | None):
@@ -79,4 +79,4 @@ def dim_vaccine(env_vars: dict | None):
     db_engine = get_db_engine(env_vars)
     target_schema = get_variable("DB_SCHEMA", env_vars) or "public"
 
-    process_dimension(db_engine, "dim_vaccine", target_schema, env_vars)
+    maintain_table(db_engine, "dim_vaccine", target_schema, "dimension", "eu", env_vars)

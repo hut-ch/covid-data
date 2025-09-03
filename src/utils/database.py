@@ -242,6 +242,71 @@ def get_unique_const_cols(
     return [col[0] for col in cols]
 
 
+def get_primary_key(
+    db_engine: engine.Engine, table_name: str, schema: str
+) -> list:
+    """
+    get primary key columns on the table
+
+    this can then be used to reindex a dataframe or for 
+    dimension lookup
+    """
+
+    # Create bind parameters
+    params = {"schema": schema, "table_name": table_name}
+
+    query = text(
+        """
+    SELECT
+        cu.column_name
+    FROM
+        information_schema.constraint_column_usage cu
+        INNER JOIN information_schema.table_constraints tc
+        ON cu.constraint_name = tc.constraint_name
+    WHERE
+        cu.table_name = :table_name
+        AND tc.constraint_type = 'PRIMARY KEY'
+        AND tc.table_schema = :schema
+    """
+    )
+
+    with db_engine.connect() as con:
+        cols = con.execute(query, params)
+
+    return [col[0] for col in cols]
+
+
+def get_forign_key(
+    db_engine: engine.Engine, table_name: str, schema: str
+) -> list:
+    """
+    get foreign key columns on the table
+    """
+
+    # Create bind parameters
+    params = {"schema": schema, "table_name": table_name}
+
+    query = text(
+        """
+    SELECT
+        cu.column_name
+    FROM
+        information_schema.constraint_column_usage cu
+        INNER JOIN information_schema.table_constraints tc
+        ON cu.constraint_name = tc.constraint_name
+    WHERE
+        cu.table_name = :table_name
+        AND tc.constraint_type = 'FOREIGN KEY'
+        AND tc.table_schema = :schema
+    """
+    )
+
+    with db_engine.connect() as con:
+        cols = con.execute(query, params)
+
+    return [col[0] for col in cols]
+
+
 def validate_data_against_table(
     data: pd.DataFrame,
     db_engine: engine.Engine,

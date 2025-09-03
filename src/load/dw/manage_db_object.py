@@ -18,6 +18,9 @@ from utils import (
     get_logger,
     import_transformed_data,
     validate_data_against_table,
+    get_unique_const_cols,
+    get_primary_key,
+    combine_data
 )
 
 logger = get_logger(__name__)
@@ -163,29 +166,62 @@ def upsert_data(
         return
 
 
-def process_dimension(
-    db_engine: engine.Engine, dim: str, schema: str, env_vars: dict | None
+def get_dimension_keys(db_engine: engine.Engine, data: pd.DataFrame, dim: str, schema: str) -> pd.DataFrame:
+
+    dimension_keys = get_primary_key(db_engine, dim, schema)
+    business_keys = get_unique_const_cols(db_engine, dim, schema)
+
+    dim_keys = dimension_keys + business_keys
+
+    with (db_engine.connect()) as con:
+        dim_data = pd.read_sql(con=con, sql=dim ,index_col=dimension_keys,columns=dim_keys)
+
+    merged_data = pd.merge(data, dim_data, on=business_keys, how="left")
+
+    return merged_data
+
+
+def maintain_table(
+    db_engine: engine.Engine, table_name: str, target_schema: str, table_type:str, folder:str, env_vars: dict | None
 ):
     """load data into dimension checking if data exists and merging accordingly"""
-    logger.info("Processing %s", dim)
-    if check_table_exists(db_engine, dim, schema):
-        file_path = get_dir("CLEANSED_FOLDER", "eu", env_vars)
-        file_search = dim[4:]  # remove dim_
-        dim_files = file_check(file_path, f"/*{file_search}*.json")
+    logger.info("Processing %s", table_name)
+    if check_table_exists(db_engine, table_name, schema):
+        file_path = get_dir("CLEANSED_FOLDER", folder, env_vars)
+         
+        if table_type == "dimension":
+            file_search = table_name[4:] # remove dim_
+        elif table_type == "fact":
+            file_search = table_name[5:] # remove fact_
+        else table_name 
 
-        if dim_files is None:
-            logger.warning("No files found for %s", dim)
+        table_files = file_check(file_path, f"/*{file_search}*.json")
+
+        if table_files is None:
+            logger.warning("No files found for %s", table_name)
             return
 
-        for file in dim_files:
+
+        for file in table_files:
             logger.info("Processing %s", file)
 
             data = import_transformed_data(file)
 
             if data is None:
-                return
+                return   
 
-            if check_data_exists(db_engine, schema, dim):
-                upsert_data(db_engine, data, dim, schema)
+            if table_type == 'fact':
+                logger.info("Appending dimension keys to data for %s", table_name)
+
+                dim_keys = get_foreign_key(db_engine, table_name, target_schema)
+                logger.info("Getting the following dimensions: %s", dim_keys)
+
+                dims = [dim.replace("_key", "") for dim in dim_keys]
+                
+                for dim in fact_dims:
+                    fact_data = get_dimension_keys(db_engine, data, dim, target_schema)
+
+            if check_data_exists(db_engine, target_schema, dim):
+                upsert_data(db_engine, data, dim, target_schema)
             else:
-                insert_data(db_engine, data, dim, schema)
+                insert_data(db_engine, data, dim, target_schema)

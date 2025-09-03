@@ -336,11 +336,12 @@ def transform(env_vars: dict | None):
             "nd-country.json",
             "nd-continents.json",
             "nd-sources.json",
-            "nd-daily-nat-data.json",
-            "nd-weekly-nat-data.json",
+            "nd-cases_deaths_country_daily.json",
+            "nd-cases_deaths_country_weekly.json",
         ]
         save_to_json(datasets, filenames, "eu", env_vars)
     else:
         logger.warning("No EU National Case Deaths data found")
 
     logger.info("Completed EU National Case Deaths")
+
