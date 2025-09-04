@@ -7,6 +7,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, engine, text
 from sqlalchemy.exc import (
+    IntegrityError,
     InternalError,
     NoSuchModuleError,
     OperationalError,
@@ -114,18 +115,29 @@ def check_table_exists(
         return False
 
 
-def check_data_exists(db_engine: engine.Engine, target_schema: str, dim: str) -> bool:
+def check_data_exists(
+    db_engine: engine.Engine, target_schema: str, table_name: str, table_type: str
+) -> bool:
     """Check if data already exists in table to determine data insertion method"""
-    with db_engine.connect() as con:
-        data_check = con.execute(
-            text(
-                f"""
+
+    if table_type == "dimension":
+        query = text(
+            f"""
                 SELECT COUNT(*)
-                FROM {target_schema}.{dim}
-                WHERE {dim}_key <> -1;
+                FROM {target_schema}.{table_name}
+                WHERE {table_name}_key <> -1;
                 """  # nosec
-            )
-        ).first()[0]
+        )
+    else:
+        query = text(
+            f"""
+                SELECT COUNT(*)
+                FROM {target_schema}.{table_name};
+                """  # nosec
+        )
+
+    with db_engine.connect() as con:
+        data_check = con.execute(query).first()[0]
 
     return data_check > 0
 
@@ -155,11 +167,13 @@ def run_query_script(file: str, env_vars: dict | None):
                         query = text(query)
                         # Begin a new transaction for each query
                         with con.begin():
-                            result = con.execute(query)
-                            logger.info("Query %s executed successfully: %s", i, result)
+                            con.execute(query)
+                            logger.info("Query %s executed successfully", i)
                     except (ProgrammingError, InternalError) as e:
                         logger.error("Error executing query %s: %s", i, repr(e))
                         logger.error("Query: %s", query)
+                    except IntegrityError as e:
+                        logger.info("Data already exists for %s", e.detail)
         except OperationalError as e:
             logger.error("Database connection error: %s", str(e))
 
@@ -242,13 +256,11 @@ def get_unique_const_cols(
     return [col[0] for col in cols]
 
 
-def get_primary_key(
-    db_engine: engine.Engine, table_name: str, schema: str
-) -> list:
+def get_primary_key(db_engine: engine.Engine, table_name: str, schema: str) -> list:
     """
     get primary key columns on the table
 
-    this can then be used to reindex a dataframe or for 
+    this can then be used to reindex a dataframe or for
     dimension lookup
     """
 
@@ -276,11 +288,10 @@ def get_primary_key(
     return [col[0] for col in cols]
 
 
-def get_forign_key(
-    db_engine: engine.Engine, table_name: str, schema: str
-) -> list:
+def get_foreign_key(db_engine: engine.Engine, table_name: str, schema: str) -> list:
     """
-    get foreign key columns on the table
+    get foreign key columns on the table return the column and the
+    firenkey tanle and column
     """
 
     # Create bind parameters
@@ -289,22 +300,28 @@ def get_forign_key(
     query = text(
         """
     SELECT
-        cu.column_name
+        kcu.column_name,
+        ccu.table_name AS foreign_table_name,
+        ccu.column_name AS foreign_column_name
     FROM
-        information_schema.constraint_column_usage cu
-        INNER JOIN information_schema.table_constraints tc
-        ON cu.constraint_name = tc.constraint_name
+        information_schema.table_constraints AS tc
+        JOIN information_schema.key_column_usage AS kcu
+            ON tc.constraint_name = kcu.constraint_name
+            AND tc.table_schema = kcu.table_schema
+        JOIN information_schema.constraint_column_usage AS ccu
+            ON ccu.constraint_name = tc.constraint_name
     WHERE
-        cu.table_name = :table_name
+        tc.table_name = :table_name
         AND tc.constraint_type = 'FOREIGN KEY'
         AND tc.table_schema = :schema
+    ;
     """
     )
 
     with db_engine.connect() as con:
         cols = con.execute(query, params)
 
-    return [col[0] for col in cols]
+    return [[col[0], col[1], col[2]] for col in cols]
 
 
 def validate_data_against_table(
@@ -334,8 +351,8 @@ def validate_data_against_table(
 
     # ensure that unique keys exist in data and set the index to keys
     if is_subset(data.columns, keys):
-        just_key = list(data.columns) == keys
-        if not just_key:
+        just_keys = list(data.columns) == keys
+        if not just_keys:
             data = data.set_index(keys)
             insert_index = None if not return_index else True
         else:

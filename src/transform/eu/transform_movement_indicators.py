@@ -112,22 +112,38 @@ def create_national_regional(data: pd.DataFrame, cols_exist: list | None):
         (
             ["test_geo_level", "test_rate"],
             {
-                "national_test_rate": ("test_geo_level", "National", "test_rate"),
-                "regional_test_rate": ("test_geo_level", "Regional", "test_rate"),
+                "national_testing_rate": ("test_geo_level", "National", "test_rate"),
+                "regional_testing_rate": ("test_geo_level", "Regional", "test_rate"),
             },
         ),
         (
             ["notif_geo_level", "notif_rate"],
             {
-                "national_notif_rate": ("notif_geo_level", "National", "notif_rate"),
-                "regional_notif_rate": ("notif_geo_level", "Regional", "notif_rate"),
+                "national_notification_rate": (
+                    "notif_geo_level",
+                    "National",
+                    "notif_rate",
+                ),
+                "regional_notification_rate": (
+                    "notif_geo_level",
+                    "Regional",
+                    "notif_rate",
+                ),
             },
         ),
         (
             ["vacc_geo_level", "vacc_uptake"],
             {
-                "national_vacc_rate": ("vacc_geo_level", "National", "vacc_uptake"),
-                "regional_vacc_rate": ("vacc_geo_level", "Regional", "vacc_uptake"),
+                "national_vaccination_rate": (
+                    "vacc_geo_level",
+                    "National",
+                    "vacc_uptake",
+                ),
+                "regional_vaccination_rate": (
+                    "vacc_geo_level",
+                    "Regional",
+                    "vacc_uptake",
+                ),
             },
         ),
         (
@@ -163,13 +179,12 @@ def cleanup_columns(source_data: pd.DataFrame, level: str) -> pd.DataFrame:
         "country_code",
         "colour",
         "week",
-        "week_start",
-        "week_end",
+        "week_start_date",
+        "week_end_date",
     ]
     national = [
-        "national_test_rate",
-        "national_notif_rate",
-        "national_vacc_rate",
+        "national_notification_rate",
+        "national_vaccination_rate",
         "national_cases_7",
         "national_cases_14",
         "national_population",
@@ -178,13 +193,12 @@ def cleanup_columns(source_data: pd.DataFrame, level: str) -> pd.DataFrame:
     ]
     regional = [
         "region_code",
-        "regional_test_rate",
-        "regional_notif_rate",
-        "regional_vacc_rate",
+        "regional_notification_rate",
+        "regional_vaccination_rate",
         "regional_cases_7",
         "regional_cases_14",
         "regional_population",
-        "regional_testing_data",
+        "regional_testing_rate",
         "regional_positivity_rate",
         "positivity_rate_combined",
         "testing_rate_combined",
@@ -220,7 +234,7 @@ def calc_national_cases_14(data: pd.DataFrame):
     logger.info("Calculating 14 day rate")
 
     # Create a previous week start column to use to lookup against
-    data["week_start_prev"] = data["week_start"] + timedelta(weeks=-1)
+    data["week_start_date_prev"] = data["week_start_date"] + timedelta(weeks=-1)
 
     # Create a composite key to use for lookup data
     data["count_reg_week"] = (
@@ -228,7 +242,7 @@ def calc_national_cases_14(data: pd.DataFrame):
         + "|"
         + data["region_code"].astype(str)
         + "|"
-        + data["week_start"].astype(str)
+        + data["week_start_date"].astype(str)
     )
 
     # Create the lookup data
@@ -237,7 +251,7 @@ def calc_national_cases_14(data: pd.DataFrame):
     # Map using tuple keys, or default to 0
     data["national_cases_14"] = data.apply(
         lambda row: prev_date_lookup.get(
-            (row["country_code"], row["region_code"], row["week_start_prev"]), 0
+            (row["country_code"], row["region_code"], row["week_start_date_prev"]), 0
         ),
         axis=1,
     )
@@ -262,13 +276,29 @@ def create_datasets(
         data, ["country_code", "country_name"], ["country_code"]
     )
 
-    # create regiona metrics
+    # create regional metrics
     logger.info("Creating regional metrics dataset")
-    regional = cleanup_columns(data, "regional")
+    regional = cleanup_columns(data, "regional").copy()
+    regional.columns = regional.columns.str.replace("regional_", "")
+    regional.rename(
+        columns={
+            "cases_7": "new_cases_last_7days",
+            "cases_14": "new_cases_last_14days",
+        },
+        inplace=True,
+    )
 
     # create national metrics
     logger.info("Creating national metrics dataset")
-    national = cleanup_columns(data, "national")
+    national = cleanup_columns(data, "national").copy()
+    national.columns = national.columns.str.replace("national_", "")
+    national.rename(
+        columns={
+            "cases_7": "new_cases_last_7days",
+            "cases_14": "new_cases_last_14days",
+        },
+        inplace=True,
+    )
     national = get_unique_data(national, national.columns, ["country_code", "week"])
 
     return (regions, countries, regional, national)
@@ -306,11 +336,12 @@ def transform(env_vars: dict | None):
         # save data
         datasets = [mi_regions, mi_countries, mi_regional, mi_national]
         filenames = [
-            "mi-regions.json",
-            "mi-country.json",
-            "mi-movement_indicators_region.json",
-            "mi-movement_indicators_country.json",
+            "mi-dim_region.json",
+            "mi-dim_country.json",
+            "mi-fact_movement_indicators_region.json",
+            "mi-fact_movement_indicators_country.json",
         ]
+
         save_to_json(datasets, filenames, "eu", env_vars)
     else:
         logger.warning("No EU Movement Indicators data found")

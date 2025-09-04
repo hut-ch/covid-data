@@ -70,6 +70,9 @@ def rename_cols(data: pd.DataFrame) -> pd.DataFrame:
         inplace=True,
     )
     data.columns = [camel_to_snake(col) for col in data.columns]
+    data.columns.str.replace("dose_additional_", "additional_dose_")
+    data.columns.str.replace("dose_unknown", "unknown_dose")
+    data.columns.str.replace("doses", "number_doses")
 
     return data
 
@@ -202,12 +205,12 @@ def transform_chunk(env_vars: dict | None):
                     regional_data,
                 ]
                 filenames = [
-                    "vt-country.json",
-                    "vt-regions.json",
-                    "vt-vaccines.json",
-                    "vt-ages.json",
-                    "vt-vaccine_tracker_country.json",
-                    "vt-vaccine_tracker_region.json",
+                    "vt-dim_country.json",
+                    "vt-dim_region.json",
+                    "vt-dim_vaccine.json",
+                    "vt-dim_ages.json",
+                    "vt-fact_vaccine_tracker_country.json",
+                    "vt-fact_vaccine_tracker_region.json",
                 ]
 
                 first_chunk = i == 0
@@ -257,12 +260,12 @@ def transform_whole(env_vars: dict | None):
                 regional_data,
             ]
             filenames = [
-                "vtw-country.json",
-                "vtw-regions.json",
-                "vtw-vaccines.json",
-                "vtw-ages.json",
-                "vtw-vaccinations_country.json",
-                "vtw-vaccinations_region.json",
+                "vtw-dim_country.json",
+                "vtw-dim_region.json",
+                "vtw-dim_vaccine.json",
+                "vtw-dim_age.json",
+                "vtw-fact_vaccinations_country.json",
+                "vtw-fact_vaccinations_region.json",
             ]
 
             save_to_json(datasets, filenames, "eu", env_vars)

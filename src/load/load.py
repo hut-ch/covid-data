@@ -1,7 +1,12 @@
 """Runs all load processes"""
 
 from load.dimensions import maintain_eu_dims, maintain_shared_dims, maintain_uk_dims
-from load.dw import create_dimensional_model_eu, drop_dimensional_model_eu
+from load.dw import (
+    create_dimensional_model_eu,
+    create_dimensional_model_shared,
+    drop_dimensional_model_eu,
+    drop_dimensional_model_shared,
+)
 from load.facts import maintain_eu_facts, maintain_uk_facts
 from utils import get_logger
 
@@ -40,8 +45,13 @@ def load_uk(env_vars: dict | None):
     logger.info("Finished UK Load")
 
 
-def load_shared(env_vars: dict | None):
+def load_shared(env_vars: dict | None, refresh: bool = False):
     "Run Shareed Loads"
+
+    if refresh:
+        drop_dimensional_model_shared(env_vars)
+
+    create_dimensional_model_shared(env_vars)
 
     logger.info("Starting Shared Load")
     maintain_shared_dims(env_vars)

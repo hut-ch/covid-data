@@ -177,7 +177,7 @@ def save_to_json(datasets: list, file_names: list, folder: str, env_vars: dict |
 
         file = get_file(save_dir, filename)
         dataset.reset_index(drop=True, inplace=True)
-        dataset.to_json(file)
+        dataset.to_json(file, date_unit="ns")
 
 
 def save_chunk_to_json(

@@ -18,9 +18,6 @@ DROP TABLE IF EXISTS fact_cases_deaths_country_daily;
 --fact_cases_deaths_country_weekly
 DROP TABLE IF EXISTS fact_cases_deaths_country_weekly;
 --#
---dim_date
-DROP TABLE IF EXISTS dim_date;
---#
 --dim_vaccine
 DROP TABLE IF EXISTS dim_vaccine;
 --#

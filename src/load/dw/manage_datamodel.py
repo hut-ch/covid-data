@@ -28,6 +28,26 @@ def create_dimensional_model_eu(env_vars: dict | None):
         logger.warning("Skipping Table Creation - No file found /src/sql/")
 
 
+def drop_dimensional_model_shared(env_vars: dict | None):
+    """run drop tables script EU"""
+
+    if file_exists("./src/sql/", "drop_tables_shared.sql"):
+        logger.info("Droping Tables")
+        run_query_script("./src/sql/drop_tables_shared.sql", env_vars)
+    else:
+        logger.warning("Skipping Table Drop - No file found in /src/sql/")
+
+
+def create_dimensional_model_shared(env_vars: dict | None):
+    """run create tables script EU"""
+
+    if file_exists("./src/sql/", "create_tables_shared.sql"):
+        logger.info("Creating Tables")
+        run_query_script("./src/sql/create_tables_shared.sql", env_vars)
+    else:
+        logger.warning("Skipping Table Creation - No file found /src/sql/")
+
+
 def check_schema_exists(db_engine: engine.Engine, target_schema: str) -> bool:
     """Checks if target schema exists in database"""
 

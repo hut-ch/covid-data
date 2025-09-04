@@ -12,6 +12,12 @@ from .dimensions import (
     maintain_shared_dims,
     maintain_uk_dims,
 )
-from .dw import create_dimensional_model_eu, create_schema, drop_dimensional_model_eu
+from .dw import (
+    create_dimensional_model_eu,
+    create_dimensional_model_shared,
+    create_schema,
+    drop_dimensional_model_eu,
+    drop_dimensional_model_shared,
+)
 from .facts import maintain_eu_facts, maintain_uk_facts
 from .load import load_all, load_eu, load_uk

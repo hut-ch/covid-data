@@ -1,8 +1,7 @@
 """Manage EU specific Dimensions"""
 
+from load.dw import maintain_table
 from utils import get_db_engine, get_logger, get_variable
-
-from load.dw import maintian_table
 
 logger = get_logger(__name__)
 
@@ -61,7 +60,7 @@ def dim_source(env_vars: dict | None):
     db_engine = get_db_engine(env_vars)
     target_schema = get_variable("DB_SCHEMA", env_vars) or "public"
 
-    maintain_table(db_engine, "dim_source", target_schema, "dimension", env_vars)
+    maintain_table(db_engine, "dim_source", target_schema, "dimension", "eu", env_vars)
 
 
 def dim_status(env_vars: dict | None):

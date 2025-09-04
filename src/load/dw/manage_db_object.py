@@ -15,12 +15,13 @@ from utils import (
     create_temp_table,
     file_check,
     get_dir,
+    get_foreign_key,
     get_logger,
-    import_transformed_data,
-    validate_data_against_table,
-    get_unique_const_cols,
     get_primary_key,
-    combine_data
+    get_unique_const_cols,
+    import_transformed_data,
+    is_subset,
+    validate_data_against_table,
 )
 
 logger = get_logger(__name__)
@@ -30,10 +31,12 @@ def insert_data(
     db_engine: engine.Engine, data: pd.DataFrame, table_name: str, schema: str
 ):
     """Insert data into target table"""
+    logger.info("Inserting data as %s is blank", table_name)
 
     if check_table_exists(db_engine, table_name, schema):
         # Check data is valid against table and cleanup data
 
+        logger.info("Running validation checks on data")
         valid_data, _, _, insert_index = validate_data_against_table(
             data,
             db_engine,
@@ -60,7 +63,7 @@ def insert_data(
                 logger.info("%s - %s rows inserted", table_name, inserted_rows)
             except OperationalError as e:
                 logger.error("Database connection error: %s", repr(e))
-            except (ProgrammingError, IntegrityError) as e:
+            except (ProgrammingError, IntegrityError, ValueError) as e:
                 logger.error("Error inserting Data: %s", repr(e))
     else:
         logger.error(
@@ -166,41 +169,84 @@ def upsert_data(
         return
 
 
-def get_dimension_keys(db_engine: engine.Engine, data: pd.DataFrame, dim: str, schema: str) -> pd.DataFrame:
+def append_dimension_key(
+    db_engine: engine.Engine, data: pd.DataFrame, dim: str, schema: str
+) -> pd.DataFrame:
+    """Add input dimensions key to source Dataframe by matching
+    on unique contraint columns defined in the dimension"""
 
-    dimension_keys = get_primary_key(db_engine, dim, schema)
-    business_keys = get_unique_const_cols(db_engine, dim, schema)
+    dimension_keys = get_primary_key(db_engine, dim[1], schema)
+    business_keys = get_unique_const_cols(db_engine, dim[1], schema)
 
-    dim_keys = dimension_keys + business_keys
+    dim_default = {key: -1 for key in dimension_keys}
 
-    with (db_engine.connect()) as con:
-        dim_data = pd.read_sql(con=con, sql=dim ,index_col=dimension_keys,columns=dim_keys)
+    if dim[1] == "dim_date":
+        with db_engine.connect() as con:
+            dim_data = pd.read_sql(
+                con=con, sql=dim[1], columns=dimension_keys + business_keys
+            )
 
-    merged_data = pd.merge(data, dim_data, on=business_keys, how="left")
+        left = str(dim[0]).replace("dim_", "").replace("_key", "")
+
+        dim_data["date"] = dim_data["date"].astype("int64")
+        data[left] = data[left].astype("int64")
+
+        merged_data = pd.merge(
+            data,
+            dim_data,
+            how="left",
+            left_on=left,
+            right_on=business_keys,
+        ).fillna(dim_default)
+
+        merged_data.rename(
+            columns={"dim_date_key": dim[0]},
+            inplace=True,
+        )
+
+    elif is_subset(data.columns, business_keys):
+        with db_engine.connect() as con:
+            dim_data = pd.read_sql(
+                con=con, sql=dim[1], columns=dimension_keys + business_keys
+            )
+
+        merged_data = pd.merge(
+            data,
+            dim_data,
+            how="left",
+            on=business_keys,
+        ).fillna(dim_default)
+    else:
+        logger.warning(
+            "Business key: %s missing from data, setting %s to default -1",
+            business_keys,
+            dim,
+        )
+        key_name = str(*dimension_keys)
+        data[key_name] = -1
+        merged_data = data
 
     return merged_data
 
 
 def maintain_table(
-    db_engine: engine.Engine, table_name: str, target_schema: str, table_type:str, folder:str, env_vars: dict | None
+    db_engine: engine.Engine,
+    table_name: str,
+    target_schema: str,
+    table_type: str,
+    folder: str,
+    env_vars: dict | None,
 ):
     """load data into dimension checking if data exists and merging accordingly"""
     logger.info("Processing %s", table_name)
-    if check_table_exists(db_engine, table_name, schema):
+    if check_table_exists(db_engine, table_name, target_schema):
         file_path = get_dir("CLEANSED_FOLDER", folder, env_vars)
-         
-        if table_type == "dimension":
-            file_search = table_name[4:] # remove dim_
-        elif table_type == "fact":
-            file_search = table_name[5:] # remove fact_
-        else table_name 
 
-        table_files = file_check(file_path, f"/*{file_search}*.json")
+        table_files = file_check(file_path, f"/*{table_name}*.json")
 
         if table_files is None:
             logger.warning("No files found for %s", table_name)
             return
-
 
         for file in table_files:
             logger.info("Processing %s", file)
@@ -208,20 +254,22 @@ def maintain_table(
             data = import_transformed_data(file)
 
             if data is None:
-                return   
+                return
 
-            if table_type == 'fact':
+            if table_type == "fact":
                 logger.info("Appending dimension keys to data for %s", table_name)
 
                 dim_keys = get_foreign_key(db_engine, table_name, target_schema)
-                logger.info("Getting the following dimensions: %s", dim_keys)
 
-                dims = [dim.replace("_key", "") for dim in dim_keys]
-                
-                for dim in fact_dims:
-                    fact_data = get_dimension_keys(db_engine, data, dim, target_schema)
+                for dim in dim_keys:
+                    logger.info("Getting key for: %s", dim[1])
+                    data = append_dimension_key(db_engine, data, dim, target_schema)
 
-            if check_data_exists(db_engine, target_schema, dim):
-                upsert_data(db_engine, data, dim, target_schema)
+                data = data.fillna(0)
+
+            if check_data_exists(db_engine, target_schema, table_name, table_type):
+                upsert_data(db_engine, data, table_name, target_schema)
             else:
-                insert_data(db_engine, data, dim, target_schema)
+                insert_data(db_engine, data, table_name, target_schema)
+    else:
+        logger.error("Table  %s does not exist in %s", table_name, target_schema)

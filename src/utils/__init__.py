@@ -19,11 +19,11 @@ from .database import (
     check_table_exists,
     create_temp_table,
     get_db_engine,
+    get_foreign_key,
+    get_primary_key,
+    get_unique_const_cols,
     run_query_script,
     validate_data_against_table,
-    get_unique_const_cols,
-    get_primary_key,
-    get_foreign_key
 )
 from .file import (
     create_dir,

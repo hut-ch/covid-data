@@ -126,8 +126,8 @@ def create_cases_deaths(data: pd.DataFrame, cols: list | None):
             (
                 ["indicator", "rate_14_day"],
                 {
-                    "cases_notif_rate_14": ("indicator", "cases", "rate_14_day"),
-                    "deaths_notif_rate_14": ("indicator", "deaths", "rate_14_day"),
+                    "cases_notification_rate": ("indicator", "cases", "rate_14_day"),
+                    "deaths_notification_rate": ("indicator", "deaths", "rate_14_day"),
                 },
             ),
         ]
@@ -160,17 +160,19 @@ def get_rate_from_weekly(daily: pd.DataFrame, weekly: pd.DataFrame) -> pd.DataFr
     logger.info("Pulling 14 date rate from wekly data for daily")
 
     daily.drop(
-        ["cases_notif_rate_14", "deaths_notif_rate_14"], axis="columns", inplace=True
+        ["cases_notification_rate", "deaths_notification_rate"],
+        axis="columns",
+        inplace=True,
     )
 
     merged = daily.merge(
         weekly[
             [
                 "territory_code",
-                "week_start",
-                "week_end",
-                "cases_notif_rate_14",
-                "deaths_notif_rate_14",
+                "week_start_date",
+                "week_end_date",
+                "cases_notification_rate",
+                "deaths_notification_rate",
             ]
         ],
         on="territory_code",
@@ -178,8 +180,8 @@ def get_rate_from_weekly(daily: pd.DataFrame, weekly: pd.DataFrame) -> pd.DataFr
     )
 
     merged = merged[
-        (merged["date"] >= merged["week_start"])
-        & (merged["date"] <= merged["week_end"])
+        (merged["date"] >= merged["week_start_date"])
+        & (merged["date"] <= merged["week_end_date"])
     ]
 
     merged = get_unique_data(merged, merged.columns, ["territory_code", "date"])
@@ -207,16 +209,19 @@ def create_columns(data: pd.DataFrame, env_vars: dict | None) -> pd.DataFrame:
 
     required_cols = [
         "year_week",
+        "date",
+        "country_code",
+        "continent",
         "indicator",
         "weekly_count",
         "cumulative_count",
         "rate_14_day",
-        "date",
         "cases",
         "deaths",
+        "population",
     ]
     actual_cols = check_columns_exist(data, required_cols, warn=False)[0]
-    create_cases_deaths(data, actual_cols)
+    data = create_cases_deaths(data, actual_cols)
 
     return data
 
@@ -230,20 +235,18 @@ def cleanup_columns(source_data: pd.DataFrame, level: str) -> pd.DataFrame:
 
     common = [
         "territory_code",
+        "country_code",
         "continent",
         "population",
+        "source_name",
         "cases",
         "cases_cumulative",
-        "cases_notif_rate_14",
+        "cases_notification_rate",
         "deaths",
         "deaths_cumulative",
-        "deaths_notif_rate_14",
-        "source_name",
-        "country_name",
-        "country_match",
-        "country_score",
+        "deaths_notification_rate",
     ]
-    weekly = ["year_week", "week_start", "week_end"]
+    weekly = ["year_week", "week_start_date", "week_end_date"]
     daily = ["date"]
 
     common, weekly, daily = (  # pylint: disable=unbalanced-tuple-unpacking
@@ -333,15 +336,14 @@ def transform(env_vars: dict | None):
         # save data
         datasets = [country_lkup, cont_lkup, source_lkup, daily_data, weekly_data]
         filenames = [
-            "nd-country.json",
-            "nd-continents.json",
-            "nd-sources.json",
-            "nd-cases_deaths_country_daily.json",
-            "nd-cases_deaths_country_weekly.json",
+            "nd-dim_country.json",
+            "nd-dim_continent.json",
+            "nd-dim_source.json",
+            "nd-fact_cases_deaths_country_daily.json",
+            "nd-fact_cases_deaths_country_weekly.json",
         ]
         save_to_json(datasets, filenames, "eu", env_vars)
     else:
         logger.warning("No EU National Case Deaths data found")
 
     logger.info("Completed EU National Case Deaths")
-

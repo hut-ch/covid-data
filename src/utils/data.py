@@ -50,7 +50,9 @@ def check_columns_exist(
 
 def is_subset(full_list: list, sub_list: list) -> bool:
     """Checks all values in subset list exist in main list"""
-    return all(val in full_list for val in sub_list)
+
+    # return all(val in full_list for val in sub_list)
+    return bool(sub_list) and set(sub_list).issubset(full_list)
 
 
 def get_unique_data(data: pd.DataFrame, col_list: list | None, key: list | None):
@@ -195,13 +197,13 @@ def create_week_start_end(data: pd.DataFrame, week_col: str) -> pd.DataFrame:
         data["week"] = split_cols[1].str[-2:].astype(int)
 
         # Use ISO calendar to calculate week start and end
-        data["week_start"] = data.apply(
+        data["week_start_date"] = data.apply(
             lambda r: pd.to_datetime(
                 f"{r['year']}-W{int(r['week']):02d}-1", format="%G-W%V-%u"
             ),
             axis=1,
         )
-        data["week_end"] = data["week_start"] + pd.Timedelta(days=6)
+        data["week_end_date"] = data["week_start_date"] + pd.Timedelta(days=6)
 
     return data
 
