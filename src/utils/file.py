@@ -198,4 +198,4 @@ def save_chunk_to_json(
 
     mode = "w" if first_chunk else "a"
 
-    data_chunk.to_json(path, mode=mode, orient="records", lines=True)
+    data_chunk.to_json(path, mode=mode, orient="records", lines=True, date_unit="ns")

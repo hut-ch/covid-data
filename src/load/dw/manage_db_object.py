@@ -3,6 +3,7 @@
 import pandas as pd
 from sqlalchemy import engine, text
 from sqlalchemy.exc import (
+    DataError,
     DBAPIError,
     IntegrityError,
     OperationalError,
@@ -21,6 +22,7 @@ from utils import (
     get_unique_const_cols,
     import_transformed_data,
     is_subset,
+    merge_rows,
     validate_data_against_table,
 )
 
@@ -36,6 +38,7 @@ def insert_data(
     if check_table_exists(db_engine, table_name, schema):
         # Check data is valid against table and cleanup data
 
+        print(data.columns)
         logger.info("Running validation checks on data")
         valid_data, _, _, insert_index = validate_data_against_table(
             data,
@@ -48,6 +51,19 @@ def insert_data(
         if valid_data is None:
             logger.warning("Data did not pass validation checks skipping")
             return
+
+        if table_name in (
+            "fact_vaccine_tracker_country",
+            "fact_vaccine_tracker_region",
+        ):
+            valid_data = valid_data.replace("", -2)
+            valid_data = valid_data.fillna(-3)
+            key_columns = [col for col in valid_data.columns if col.endswith("_key")]
+            print(valid_data.columns)
+            print(key_columns)
+            valid_data = merge_rows(
+                data=valid_data, group_cols=key_columns, aggregate=False
+            )
 
         with db_engine.connect() as connection:
             try:
@@ -63,7 +79,7 @@ def insert_data(
                 logger.info("%s - %s rows inserted", table_name, inserted_rows)
             except OperationalError as e:
                 logger.error("Database connection error: %s", repr(e))
-            except (ProgrammingError, IntegrityError, ValueError) as e:
+            except (ProgrammingError, IntegrityError, ValueError, DataError) as e:
                 logger.error("Error inserting Data: %s", repr(e))
     else:
         logger.error(
@@ -179,6 +195,7 @@ def append_dimension_key(
     business_keys = get_unique_const_cols(db_engine, dim[1], schema)
 
     dim_default = {key: -1 for key in dimension_keys}
+    print(dim_default)
 
     if dim[1] == "dim_date":
         with db_engine.connect() as con:
@@ -216,6 +233,9 @@ def append_dimension_key(
             how="left",
             on=business_keys,
         ).fillna(dim_default)
+
+        if "dim_age_key" in merged_data.columns:
+            merged_data["dim_age_key"] = merged_data["dim_age_key"].astype("int64")
     else:
         logger.warning(
             "Business key: %s missing from data, setting %s to default -1",

@@ -17,9 +17,9 @@ def maintain_eu_facts(env_vars: dict | None):
     facts = [
         "fact_cases_deaths_country_daily",
         "fact_cases_deaths_country_weekly",
-        # "fact_movement_indicators_country",
-        # "fact_movement_indicators_region",
-        #    "fact_vaccine_tracker_country",
+        "fact_movement_indicators_country",
+        "fact_movement_indicators_region",
+        # "fact_vaccine_tracker_country",
         #    "fact_vaccine_tracker_region",
     ]
     for fact in facts:

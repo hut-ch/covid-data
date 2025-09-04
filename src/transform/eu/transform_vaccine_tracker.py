@@ -70,9 +70,12 @@ def rename_cols(data: pd.DataFrame) -> pd.DataFrame:
         inplace=True,
     )
     data.columns = [camel_to_snake(col) for col in data.columns]
-    data.columns.str.replace("dose_additional_", "additional_dose_")
-    data.columns.str.replace("dose_unknown", "unknown_dose")
-    data.columns.str.replace("doses", "number_doses")
+
+    data.columns = data.columns.str.replace(
+        "dose_additional", "additional_dose_", regex=True
+    )
+    data.columns = data.columns.str.replace("dose_unknown", "unknown_dose", regex=True)
+    data.columns = data.columns.str.replace("number_doses", "doses", regex=True)
 
     return data
 

@@ -93,13 +93,14 @@ VALUES (-1,'-unknown-',0,0);
 --fact_vaccine_tracker_country
 CREATE TABLE IF NOT EXISTS fact_vaccine_tracker_country
 (
-    "dim_date_key"              INT             NOT NULL    REFERENCES dim_date(dim_date_key),
+    "dim_week_start_date_key"   INT             NOT NULL    REFERENCES dim_date(dim_date_key),
+    "dim_week_end_date_key"     INT             NOT NULL    REFERENCES dim_date(dim_date_key),
     "dim_country_key"           INT             NOT NULL    REFERENCES dim_country(dim_country_key),
     "dim_vaccine_key"           INT             NOT NULL    REFERENCES dim_vaccine(dim_vaccine_key),
     "dim_source_key"            INT             NOT NULL    REFERENCES dim_source(dim_source_key),
     "dim_age_key"               INT             NOT NULL    REFERENCES dim_age(dim_age_key),
     "first_dose"                INT             NOT NULL,
-    "first_dose_refused"        INT             NOT NULL,
+    "first_dose_refused"        VARCHAR(255)    NOT NULL,
     "second_dose"               INT             NOT NULL,
     "additional_dose_1"         INT             NOT NULL,
     "additional_dose_2"         INT             NOT NULL,
@@ -113,20 +114,21 @@ CREATE TABLE IF NOT EXISTS fact_vaccine_tracker_country
     "denominator"               INT             NOT NULL,
     "created_ts"                TIMESTAMP       DEFAULT     CURRENT_TIMESTAMP,
     "updated_ts"                TIMESTAMP       DEFAULT     CURRENT_TIMESTAMP,
-    UNIQUE("dim_date_key", "dim_country_key", "dim_vaccine_key", "dim_source_key", "dim_age_key")
+    UNIQUE("dim_week_start_date_key", "dim_week_end_date_key", "dim_country_key", "dim_vaccine_key", "dim_source_key", "dim_age_key")
 );
 --#
 --fact_vaccine_tracker_region
 CREATE TABLE IF NOT EXISTS fact_vaccine_tracker_region
 (
-    "dim_date_key"              INT             NOT NULL    REFERENCES dim_date(dim_date_key),
+    "dim_week_start_date_key"   INT             NOT NULL    REFERENCES dim_date(dim_date_key),
+    "dim_week_end_date_key"     INT             NOT NULL    REFERENCES dim_date(dim_date_key),
     "dim_country_key"           INT             NOT NULL    REFERENCES dim_country(dim_country_key),
     "dim_region_key"            INT             NOT NULL    REFERENCES dim_region(dim_region_key),
     "dim_vaccine_key"           INT             NOT NULL    REFERENCES dim_vaccine(dim_vaccine_key),
     "dim_source_key"            INT             NOT NULL    REFERENCES dim_source(dim_source_key),
     "dim_age_key"               INT             NOT NULL    REFERENCES dim_age(dim_age_key),
     "first_dose"                INT             NOT NULL,
-    "first_dose_refused"        INT             NOT NULL,
+    "first_dose_refused"        VARCHAR(255)    NOT NULL,
     "second_dose"               INT             NOT NULL,
     "additional_dose_1"         INT             NOT NULL,
     "additional_dose_2"         INT             NOT NULL,
@@ -140,7 +142,7 @@ CREATE TABLE IF NOT EXISTS fact_vaccine_tracker_region
     "denominator"               INT             NOT NULL,
     "created_ts"                TIMESTAMP       DEFAULT     CURRENT_TIMESTAMP,
     "updated_ts"                TIMESTAMP       DEFAULT     CURRENT_TIMESTAMP,
-    UNIQUE("dim_date_key", "dim_country_key", "dim_region_key", "dim_vaccine_key", "dim_source_key", "dim_age_key")
+    UNIQUE("dim_week_start_date_key", "dim_week_end_date_key", "dim_country_key", "dim_region_key", "dim_vaccine_key", "dim_source_key", "dim_age_key")
 );
 --#
 --fact_movement_indicators_country
@@ -153,10 +155,10 @@ CREATE TABLE IF NOT EXISTS fact_movement_indicators_country
     "population"                INT             NOT NULL,
     "new_cases_last_7days"      INT             NOT NULL,
     "new_cases_last_14days"     INT             NOT NULL,
-    "notification_rate"         NUMERIC(10,5)   NOT NULL,
-    "testing_rate"              NUMERIC(10,5)   NOT NULL,
-    "positivity_rate"           NUMERIC(10,5)   NOT NULL,
-    "vaccination_rate"          NUMERIC(10,5)   NOT NULL,
+    "notification_rate"         NUMERIC(20,10)  NOT NULL,
+    "testing_rate"              NUMERIC(20,10)  NOT NULL,
+    "positivity_rate"           NUMERIC(20,10)  NOT NULL,
+    "vaccination_rate"          NUMERIC(20,10)  NOT NULL,
     "created_ts"                TIMESTAMP       DEFAULT     CURRENT_TIMESTAMP,
     "updated_ts"                TIMESTAMP       DEFAULT     CURRENT_TIMESTAMP,
     UNIQUE("dim_week_start_date_key", "dim_week_end_date_key", "dim_country_key", "dim_status_key")
@@ -173,12 +175,12 @@ CREATE TABLE IF NOT EXISTS fact_movement_indicators_region
     "population"                INT             NOT NULL,
     "new_cases_last_7days"      INT             NOT NULL,
     "new_cases_last_14days"     INT             NOT NULL,
-    "notification_rate"         NUMERIC(10,5)   NOT NULL,
-    "testing_rate"              NUMERIC(10,5)   NOT NULL,
-    "positivity_rate"           NUMERIC(10,5)   NOT NULL,
-    "vaccination_rate"          NUMERIC(10,5)   NOT NULL,
-    "positivity_rate_combined"  NUMERIC(10,5)   NOT NULL,
-    "testing_rate_combined"     NUMERIC(10,5)   NOT NULL,
+    "notification_rate"         NUMERIC(20,10)  NOT NULL,
+    "testing_rate"              NUMERIC(20,10)  NOT NULL,
+    "positivity_rate"           NUMERIC(20,10)  NOT NULL,
+    "vaccination_rate"          NUMERIC(20,10)  NOT NULL,
+    "positivity_rate_combined"  NUMERIC(20,10)  NOT NULL,
+    "testing_rate_combined"     NUMERIC(20,10)  NOT NULL,
     "created_ts"                TIMESTAMP       DEFAULT     CURRENT_TIMESTAMP,
     "updated_ts"                TIMESTAMP       DEFAULT     CURRENT_TIMESTAMP,
     UNIQUE("dim_week_start_date_key", "dim_week_end_date_key", "dim_country_key", "dim_region_key", "dim_status_key")
