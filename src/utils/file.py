@@ -6,6 +6,7 @@ import os
 import time
 from zipfile import BadZipFile, ZipFile, is_zipfile
 
+import ijson
 import pandas as pd
 
 from utils.config import get_variable
@@ -138,6 +139,28 @@ def load_json(file: str) -> pd.DataFrame:
         raise ValueError("Unsupported JSON structure")
 
     return data
+
+
+def load_json_chunk(file: str, chunk_size: int = 1000):
+    """
+    Stream and load JSON records from a large JSON file in chunks.
+    The JSON must be a dict with a 'records' key, whose value is a large array.
+
+    Yields:
+        pd.DataFrame: DataFrame chunk of specified size
+    """
+    with open(file, "r", encoding="utf-8") as f:
+        objects = ijson.items(f, "records.item")
+        buffer = []
+
+        for obj in objects:
+            buffer.append(obj)
+            if len(buffer) >= chunk_size:
+                yield pd.DataFrame(buffer)
+                buffer = []
+
+        if buffer:
+            yield pd.DataFrame(buffer)
 
 
 def import_transformed_data(file: str) -> pd.DataFrame | None:

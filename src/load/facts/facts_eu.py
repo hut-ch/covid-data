@@ -19,8 +19,8 @@ def maintain_eu_facts(env_vars: dict | None):
         "fact_cases_deaths_country_weekly",
         "fact_movement_indicators_country",
         "fact_movement_indicators_region",
-        # "fact_vaccine_tracker_country",
-        #    "fact_vaccine_tracker_region",
+        "fact_vaccine_tracker_country",
+        "fact_vaccine_tracker_region",
     ]
     for fact in facts:
         maintain_table(db_engine, fact, target_schema, "fact", "eu", env_vars)

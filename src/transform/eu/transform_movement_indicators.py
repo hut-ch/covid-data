@@ -46,7 +46,8 @@ def import_file(file: str) -> pd.DataFrame:
             "TestingRate": "test_rate",
             "TestingGeoLevel": "test_geo_level",
             "WeightedRate": "weighted_rate",
-            "Colour": "colour",
+            "Colour": "colour_name",
+            "colour": "colour_name",
             "Week": "week",
         },
         inplace=True,
@@ -79,8 +80,22 @@ def create_columns(data: pd.DataFrame, env_vars: dict | None) -> pd.DataFrame:
     create_national_regional(data, cols_exist)
 
     # Create/Transform other columns
-    if "colour" in data.columns:
-        data["colour"] = data["colour"].str.lower()
+    if "colour_name" in data.columns:
+        data["colour_name"] = data["colour_name"].str.lower()
+
+        colour_desc = {
+            "green": "Weighted rate is less than 40",
+            "orange": "Weighted rate is less than 100 but 40 or more",
+            "red": "Weighted rate is less than 300 but 100 or more",
+            "dark red": "Weighted rate is 300 or more",
+            "dark grey": "Testing rate is 600 or less",
+            "grey": "Insufficient data is available",
+            "grey - no data": "no data",
+        }
+        data["colour_description"] = (
+            data["colour_name"].map(colour_desc).fillna(data["colour_name"])
+        )
+
     if "week" in data.columns:
         create_week_start_end(data, "week")
 
@@ -177,7 +192,7 @@ def cleanup_columns(source_data: pd.DataFrame, level: str) -> pd.DataFrame:
 
     common = [
         "country_code",
-        "colour",
+        "colour_name",
         "week",
         "week_start_date",
         "week_end_date",
@@ -263,7 +278,7 @@ def calc_national_cases_14(data: pd.DataFrame):
 
 def create_datasets(
     data: pd.DataFrame,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Create required datasets from transformed data"""
 
     # create region
@@ -274,6 +289,12 @@ def create_datasets(
     logger.info("Creating country lookup dataset")
     countries = get_unique_data(
         data, ["country_code", "country_name"], ["country_code"]
+    )
+
+    # create country
+    logger.info("Creating status lookup dataset")
+    status = get_unique_data(
+        data, ["colour_name", "colour_description"], ["colour_name"]
     )
 
     # create regional metrics
@@ -301,7 +322,7 @@ def create_datasets(
     )
     national = get_unique_data(national, national.columns, ["country_code", "week"])
 
-    return (regions, countries, regional, national)
+    return (regions, countries, status, regional, national)
 
 
 def transform(env_vars: dict | None):
@@ -331,13 +352,16 @@ def transform(env_vars: dict | None):
 
         logger.info("Creating final datasets")
         # Create final datasets from transformed data
-        mi_regions, mi_countries, mi_regional, mi_national = create_datasets(mi_data)
+        mi_regions, mi_countries, mi_status, mi_regional, mi_national = create_datasets(
+            mi_data
+        )
 
         # save data
-        datasets = [mi_regions, mi_countries, mi_regional, mi_national]
+        datasets = [mi_regions, mi_countries, mi_status, mi_regional, mi_national]
         filenames = [
             "mi-dim_region.json",
             "mi-dim_country.json",
+            "mi-dim_status.json",
             "mi-fact_movement_indicators_region.json",
             "mi-fact_movement_indicators_country.json",
         ]

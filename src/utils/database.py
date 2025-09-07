@@ -111,7 +111,7 @@ def check_table_exists(
         with db_engine.connect() as con:
             return bool(con.execute(query, params).first()[0])
     except (InternalError, ProgrammingError) as e:
-        logger.error("failed to check for table: %s", repr(e))
+        logger.error("Failed to check for table: %s", repr(e))
         return False
 
 
@@ -371,7 +371,6 @@ def validate_data_against_table(
     # de duplicate the data based on unique keys just as a
     # final safety check to ensure data can be inserted
     full_cols = keys + (cols if cols is not None else [])
-
     data = get_unique_data(data, full_cols, keys)
 
     return data, keys, cols, insert_index

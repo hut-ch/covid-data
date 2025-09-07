@@ -1,12 +1,12 @@
 """Load specific processes"""
 
 from .dimensions import (
-    dim_age,
     dim_country,
     dim_date,
     dim_region,
     dim_source,
     dim_status,
+    dim_target_group,
     dim_vaccine,
     maintain_eu_dims,
     maintain_shared_dims,

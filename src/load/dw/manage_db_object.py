@@ -10,7 +10,7 @@ from sqlalchemy.exc import (
     ProgrammingError,
 )
 
-from utils import (
+from utils import (  # merge_rows,
     check_data_exists,
     check_table_exists,
     create_temp_table,
@@ -22,7 +22,6 @@ from utils import (
     get_unique_const_cols,
     import_transformed_data,
     is_subset,
-    merge_rows,
     validate_data_against_table,
 )
 
@@ -38,7 +37,6 @@ def insert_data(
     if check_table_exists(db_engine, table_name, schema):
         # Check data is valid against table and cleanup data
 
-        print(data.columns)
         logger.info("Running validation checks on data")
         valid_data, _, _, insert_index = validate_data_against_table(
             data,
@@ -51,19 +49,6 @@ def insert_data(
         if valid_data is None:
             logger.warning("Data did not pass validation checks skipping")
             return
-
-        if table_name in (
-            "fact_vaccine_tracker_country",
-            "fact_vaccine_tracker_region",
-        ):
-            valid_data = valid_data.replace("", -2)
-            valid_data = valid_data.fillna(-3)
-            key_columns = [col for col in valid_data.columns if col.endswith("_key")]
-            print(valid_data.columns)
-            print(key_columns)
-            valid_data = merge_rows(
-                data=valid_data, group_cols=key_columns, aggregate=False
-            )
 
         with db_engine.connect() as connection:
             try:
@@ -127,7 +112,7 @@ def create_merge_query(
             ("""  # nosec
         + insert_vals  # nosec
         + """)
-    """
+    ; COMMIT;"""
     )  # nosec
 
     return query
@@ -137,12 +122,6 @@ def upsert_data(
     db_engine: engine.Engine, data: pd.DataFrame, table_name: str, schema: str
 ):
     """Upsert/Merge data into target table"""
-
-    if not check_table_exists(db_engine, table_name, schema):
-        logger.error(
-            "Table %s does not exist! Ensure table is in create script", table_name
-        )
-        return
 
     # Check data is valid against table and cleanup data
     valid_data = validate_data_against_table(
@@ -195,7 +174,6 @@ def append_dimension_key(
     business_keys = get_unique_const_cols(db_engine, dim[1], schema)
 
     dim_default = {key: -1 for key in dimension_keys}
-    print(dim_default)
 
     if dim[1] == "dim_date":
         with db_engine.connect() as con:
@@ -207,6 +185,8 @@ def append_dimension_key(
 
         dim_data["date"] = dim_data["date"].astype("int64")
         data[left] = data[left].astype("int64")
+
+        logger.info("Getting key for: %s from %s", left, dim[1])
 
         merged_data = pd.merge(
             data,
@@ -282,10 +262,12 @@ def maintain_table(
                 dim_keys = get_foreign_key(db_engine, table_name, target_schema)
 
                 for dim in dim_keys:
-                    logger.info("Getting key for: %s", dim[1])
                     data = append_dimension_key(db_engine, data, dim, target_schema)
 
-                data = data.fillna(0)
+                # Fill NaN in both int and float columns with 0
+                data[data.select_dtypes(include=["int64", "float64"]).columns] = (
+                    data.select_dtypes(include=["int64", "float64"]).fillna(0)
+                )
 
             if check_data_exists(db_engine, target_schema, table_name, table_type):
                 upsert_data(db_engine, data, table_name, target_schema)

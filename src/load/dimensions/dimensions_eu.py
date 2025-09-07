@@ -15,25 +15,16 @@ def maintain_eu_dims(env_vars: dict | None):
     target_schema = get_variable("DB_SCHEMA", env_vars) or "public"
 
     dimensions = [
-        "dim_age",
         "dim_country",
         "dim_region",
         "dim_source",
         "dim_status",
+        "dim_target_group",
         "dim_vaccine",
     ]
 
     for dim in dimensions:
         maintain_table(db_engine, dim, target_schema, "dimension", "eu", env_vars)
-
-
-def dim_age(env_vars: dict | None):
-    """Maintain dim_age"""
-    logger.info("Starting EU dim_age Load")
-    db_engine = get_db_engine(env_vars)
-    target_schema = get_variable("DB_SCHEMA", env_vars) or "public"
-
-    maintain_table(db_engine, "dim_age", target_schema, "dimension", "eu", env_vars)
 
 
 def dim_country(env_vars: dict | None):
@@ -70,6 +61,17 @@ def dim_status(env_vars: dict | None):
     target_schema = get_variable("DB_SCHEMA", env_vars) or "public"
 
     maintain_table(db_engine, "dim_status", target_schema, "dimension", "eu", env_vars)
+
+
+def dim_target_group(env_vars: dict | None):
+    """Maintain dim_age"""
+    logger.info("Starting EU dim_target_group Load")
+    db_engine = get_db_engine(env_vars)
+    target_schema = get_variable("DB_SCHEMA", env_vars) or "public"
+
+    maintain_table(
+        db_engine, "dim_target_group", target_schema, "dimension", "eu", env_vars
+    )
 
 
 def dim_vaccine(env_vars: dict | None):

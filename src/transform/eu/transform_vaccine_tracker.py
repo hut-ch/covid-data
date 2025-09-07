@@ -1,6 +1,7 @@
 """Main transformation for Vaccine Tracker EU data"""
 
-import ijson
+import hashlib
+
 import numpy as np
 import pandas as pd
 
@@ -13,6 +14,7 @@ from utils import (
     get_logger,
     get_unique_data,
     load_json,
+    load_json_chunk,
     save_chunk_to_json,
     save_to_json,
 )
@@ -22,36 +24,6 @@ logger = get_logger(__name__)
 
 # from line_profiler import LineProfiler
 # from memory_profiler import profile
-
-
-def load_json_chunk(file: str, chunk_size: int = 1000):
-    """
-    Stream and load JSON records from a large JSON file in chunks.
-    The JSON must be a dict with a 'records' key, whose value is a large array.
-
-    Yields:
-        pd.DataFrame: DataFrame chunk of specified size
-    """
-    with open(file, "r", encoding="utf-8") as f:
-        objects = ijson.items(f, "records.item")
-        buffer = []
-
-        for obj in objects:
-            buffer.append(obj)
-            if len(buffer) >= chunk_size:
-                yield pd.DataFrame(buffer)
-                buffer = []
-
-        if buffer:
-            yield pd.DataFrame(buffer)
-
-
-def finalize_json_file(path):
-    """
-    Finalizes a streamed JSON array file by closing it with a ']'.
-    """
-    with open(path, "a", encoding="utf-8") as f:
-        f.write("]")
 
 
 def rename_cols(data: pd.DataFrame) -> pd.DataFrame:
@@ -64,7 +36,7 @@ def rename_cols(data: pd.DataFrame) -> pd.DataFrame:
             "YearWeekISO": "year_week",
             "ReportingCountry": "country_code",
             "Region": "region_code",
-            "TargetGroup": "age_group",
+            "TargetGroup": "target_group",
             "Vaccine": "vaccine_code",
         },
         inplace=True,
@@ -76,6 +48,34 @@ def rename_cols(data: pd.DataFrame) -> pd.DataFrame:
     )
     data.columns = data.columns.str.replace("dose_unknown", "unknown_dose", regex=True)
     data.columns = data.columns.str.replace("number_doses", "doses", regex=True)
+
+    data = set_types(data)
+
+    return data
+
+
+def create_col_key(row):
+    """Generate a hash from multiple key columns"""
+    key = f"{row['year_week']}|{row['country_code']}|{row['region_code']}|\
+        {row['target_group']}|{row['vaccine_code']}"
+    return hashlib.sha256(key.encode()).hexdigest()
+
+
+def set_types(data: pd.DataFrame) -> pd.DataFrame:
+    """set any columns types if not auto detected"""
+
+    data["doses_received"] = pd.to_numeric(data["doses_received"], errors="coerce")
+    data["doses_exported"] = pd.to_numeric(data["doses_exported"], errors="coerce")
+    data["denominator"] = pd.to_numeric(data["denominator"], errors="coerce")
+
+    # Fill NaN with 0 and convert to int
+    data = data.fillna(0).astype(
+        {
+            "doses_received": "int64",
+            "doses_exported": "int64",
+            "denominator": "int64",
+        }
+    )
 
     return data
 
@@ -96,18 +96,24 @@ def set_level(data: pd.DataFrame):
 
 def get_age_boundries(group: str) -> tuple[int | None, int | None]:
     """Define upper and lower limits of age banding bases on age grouping column"""
-    if group.startswith("Age"):
-        age_part = group[3:]
-        if "_" in age_part:  # Format: Age10_14
+    if group.startswith("Age") or group.startswith("1_Age"):
+
+        # trim prefix
+        if group.startswith("Age"):
+            age_part = group[3:]
+        else:
+            age_part = group[5:]
+
+        if "_" in age_part:  # Format: 10_14
             lower, upper = age_part.split("_")
             return int(lower), int(upper)
-        if "<" in age_part:  # Format: Age<18
+        if "<" in age_part:  # Format: <18
             upper = age_part.replace("<", "")
             return 0, int(upper)
-        if "+" in age_part:  # Format: Age80+
+        if "+" in age_part:  # Format: 80+
             lower = age_part.replace("+", "")
-            return int(lower), None
-    return None, None  # "ALL, AGEUnk"
+            return int(lower), 200
+    return 0, 200  # "ALL, AGEUnk, H, LTCF"
 
 
 def create_age_range(data: pd.DataFrame):
@@ -116,11 +122,32 @@ def create_age_range(data: pd.DataFrame):
     using assigned function
     """
     logger.info("Creating age boundaries")
-    cols = ["age_group"]
+    cols = ["target_group"]
+    target_desc = {
+        "ALL": "Overall adults (18+)",
+        "Age<18": "Overall adolescents and children (0-17 years old)",
+        "HCW": "Healthcare workers",
+        "LTCF": "Residents in long term care facilities",
+        "Age0_4": "0-4 years old",
+        "Age5_9": "5-9 years old",
+        "Age10_14": "10-14 years old",
+        "Age15_17": "15-17 years old",
+        "Age18_24": "18-24 years old",
+        "Age25_49": "25-49 years old",
+        "Age50_59": "50-59 years old",
+        "Age60_69": "60-69 years old",
+        "Age70_79": "70-79 years old",
+        "Age80+": "80 years and over",
+    }
+
     valid_cols = check_columns_exist(data, cols)
     if valid_cols:
-        data[["age_lower_limit", "age_upper_limit"]] = data["age_group"].apply(
+        data[["age_lower_limit", "age_upper_limit"]] = data["target_group"].apply(
             lambda x: pd.Series(get_age_boundries(x))
+        )
+
+        data["target_description"] = (
+            data["target_group"].map(target_desc).fillna(data["target_group"])
         )
 
     return data
@@ -138,30 +165,49 @@ def create_datasets(
     cols = ["country_code"]
     countries = get_unique_data(data, cols, ["country_code"])
 
-    # create region
-    logger.info("Creating region lookup dataset")
-    cols = ["country_code", "region_code"]
-    regions = get_unique_data(data, cols, ["region_code"])
-
     # create vaccine
     logger.info("Creating vaccine lookup dataset")
     cols = ["vaccine_code"]
     vaccines = get_unique_data(data, cols, ["vaccine_code"])
 
     # create age
-    logger.info("Creating age lookup dataset")
-    cols = ["age_group", "age_lower_limit", "age_upper_limit"]
-    ages = get_unique_data(data, cols, ["age_group"])
+    logger.info("Creating target lookup dataset")
+    cols = ["target_group", "age_lower_limit", "age_upper_limit", "target_description"]
+    ages = get_unique_data(data, cols, ["target_group"])
 
-    # create bational metrics
+    # create national metrics
     logger.info("Creating national metrics dataset")
     national = data[data["level"] == "country"].copy()
-    national = national.drop(columns=["year", "week", "level", "region_code"])
+    national = national.drop(
+        columns=[
+            "year",
+            "week",
+            "year_week",
+            "level",
+            "region_code",
+            "age_lower_limit",
+            "age_upper_limit",
+        ]
+    )
 
     # create regional metrics
     logger.info("Creating regional metrics dataset")
     regional = data[data["level"] == "region"].copy()
-    regional = regional.drop(columns=["year", "week", "level"])
+    regional = regional.drop(
+        columns=[
+            "year",
+            "week",
+            "year_week",
+            "level",
+            "age_lower_limit",
+            "age_upper_limit",
+        ]
+    )
+
+    # create region
+    logger.info("Creating region lookup dataset")
+    cols = ["region_code"]
+    regions = get_unique_data(regional, cols, ["region_code"])
 
     return (countries, regions, vaccines, ages, national, regional)
 
@@ -179,8 +225,9 @@ def transform_chunk(env_vars: dict | None):
     if available_files:
         for file in available_files:
             logger.info("Processing %s", file)
+            # processed_keys = set()
             for i, chunk in enumerate(load_json_chunk(file, 50000)):
-                logger.info("Processing Chunk %s", i)
+                logger.info("Processing %s Chunk %s", file, i)
 
                 chunk = rename_cols(chunk)
                 chunk = set_level(chunk)
@@ -193,7 +240,7 @@ def transform_chunk(env_vars: dict | None):
                     countries_lookup,
                     regions_lookup,
                     vaccines_lookup,
-                    ages_lookup,
+                    target_group_lookup,
                     national_data,
                     regional_data,
                 ) = create_datasets(chunk)
@@ -203,7 +250,7 @@ def transform_chunk(env_vars: dict | None):
                     countries_lookup,
                     regions_lookup,
                     vaccines_lookup,
-                    ages_lookup,
+                    target_group_lookup,
                     national_data,
                     regional_data,
                 ]
@@ -211,15 +258,13 @@ def transform_chunk(env_vars: dict | None):
                     "vt-dim_country.json",
                     "vt-dim_region.json",
                     "vt-dim_vaccine.json",
-                    "vt-dim_ages.json",
+                    "vt-dim_target_group.json",
                     "vt-fact_vaccine_tracker_country.json",
                     "vt-fact_vaccine_tracker_region.json",
                 ]
 
-                first_chunk = i == 0
-
                 for dataset, filename in zip(datasets, filenames):
-                    save_chunk_to_json(dataset, filename, "eu", env_vars, first_chunk)
+                    save_chunk_to_json(dataset, filename, "eu", env_vars, i == 0)
 
 
 # @profile
@@ -267,8 +312,8 @@ def transform_whole(env_vars: dict | None):
                 "vtw-dim_region.json",
                 "vtw-dim_vaccine.json",
                 "vtw-dim_age.json",
-                "vtw-fact_vaccinations_country.json",
-                "vtw-fact_vaccinations_region.json",
+                "vtw-fact_vaccine_tracker_country.json",
+                "vtw-fact_vaccine_tracker_region.json",
             ]
 
             save_to_json(datasets, filenames, "eu", env_vars)
@@ -280,7 +325,8 @@ def transform(env_vars: dict | None):
     transform_chunk(env_vars)
     # whole_time = timeit.timeit("transform_whole()", globals=globals(), number=3)
 
-    transform_whole(env_vars)
+    # transform_whole(env_vars)
+
     # chunked_time = timeit.timeit("transform_chunk()", globals=globals(), number=3)
     # logger.info(datetime.datetime.now())
 
@@ -295,4 +341,5 @@ def transform(env_vars: dict | None):
 
     # lp_wrapper = lp(transform_chunk())
     # lp_wrapper()
+    # lp.print_stats()
     # lp.print_stats()
