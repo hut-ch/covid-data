@@ -6,6 +6,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 
 from load import (
+    create_dimensional_model_shared,
     create_schema,
     maintain_shared_dims,
     maintain_uk_dims,
@@ -43,6 +44,12 @@ with DAG(
         task_id="create-uk-data-model",
     )
 
+    create_shared_data_model = PythonOperator(
+        task_id="create-shared-data-model",
+        python_callable=create_dimensional_model_shared,
+        op_kwargs={"env_vars": variables},
+    )
+
     load_shared_dims = PythonOperator(
         task_id="load-shared-dimensions",
         python_callable=maintain_shared_dims,
@@ -62,7 +69,13 @@ with DAG(
     )
 
 
-start >> setup_environment >> check_schema >> create_uk_data_model >> model_created
+start >> setup_environment >> check_schema
+
+
+check_schema >> create_shared_data_model >> model_created
+create_shared_data_model >> create_uk_data_model >> model_created
+check_schema >> create_uk_data_model >> model_created
+
 model_created >> load_uk_dims >> uk_dims_complete
 model_created >> load_shared_dims >> uk_dims_complete
 uk_dims_complete >> load_uk_facts >> facts_complete >> end

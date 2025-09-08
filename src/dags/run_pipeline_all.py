@@ -8,6 +8,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from extract import process_endpoints
 from load import (
     create_dimensional_model_eu,
+    create_dimensional_model_shared,
     create_schema,
     maintain_eu_dims,
     maintain_eu_facts,
@@ -108,8 +109,10 @@ with DAG(
         task_id="create-uk-data-model",
     )
 
-    create_shared_data_model = EmptyOperator(
+    create_shared_data_model = PythonOperator(
         task_id="create-shared-data-model",
+        python_callable=create_dimensional_model_shared,
+        op_kwargs={"env_vars": variables},
     )
 
     load_shared_dims = PythonOperator(
@@ -144,12 +147,18 @@ with DAG(
 
 
 start >> setup_environment
+
 setup_environment >> get_eu_endpoints >> eu_extract
 setup_environment >> get_uk_endpoints >> uk_extract
 setup_environment >> check_schema
+
 check_schema >> create_eu_data_model
 check_schema >> create_uk_data_model
 check_schema >> create_shared_data_model
+
+create_shared_data_model >> create_eu_data_model
+create_shared_data_model >> create_uk_data_model
+
 eu_extract >> transform_mi >> eu_transform_complete
 eu_extract >> transform_nd >> eu_transform_complete
 eu_extract >> transform_vt >> eu_transform_complete
@@ -161,14 +170,14 @@ create_eu_data_model >> load_eu_dims
 uk_transform_complete >> load_uk_dims
 create_uk_data_model >> load_uk_dims
 
-eu_transform_complete >> load_shared_dims
-uk_transform_complete >> load_shared_dims
 create_shared_data_model >> load_shared_dims
 
 load_eu_dims >> eu_dims_complete
 load_shared_dims >> eu_dims_complete
-load_shared_dims >> uk_dims_complete
+
 load_uk_dims >> uk_dims_complete
+load_shared_dims >> uk_dims_complete
+
 eu_dims_complete >> load_eu_facts >> facts_complete
 uk_dims_complete >> load_uk_facts >> facts_complete
 facts_complete >> end

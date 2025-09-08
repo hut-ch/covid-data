@@ -56,9 +56,9 @@ def get_db_engine(
         try:
             return create_engine(db_url)
         except ConnectionError as e:
-            logger.error("Unable to access database: %s", repr(e))
+            raise ConnectionError(f"Unable to access database: {e}") from e
         except NoSuchModuleError as e:
-            logger.error("Invalid Driver: %s", repr(e))
+            raise NoSuchModuleError(f"Invalid driver specified: {e}") from e
 
     return None
 
@@ -171,11 +171,12 @@ def run_query_script(file: str, env_vars: dict | None):
                             logger.info("Query %s executed successfully", i)
                     except (ProgrammingError, InternalError) as e:
                         logger.error("Error executing query %s: %s", i, repr(e))
-                        logger.error("Query: %s", query)
+                        raise RuntimeError(f"Error executing query {i}") from e
                     except IntegrityError as e:
                         logger.info("Data already exists for %s", e.detail)
         except OperationalError as e:
             logger.error("Database connection error: %s", str(e))
+            raise RuntimeError(f"Database connection error: {e}") from e
 
 
 def get_other_cols(db_engine: engine.Engine, table_name: str, schema: str) -> list:
