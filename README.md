@@ -1,7 +1,7 @@
 # Covid Data
 This project uses [EU](https://www.ecdc.europa.eu/en/covid-19/data) and [UK](https://ukhsa-dashboard.data.gov.uk/covid-19-archive-data-download) COVID-19 archived datasets to buld and ETL pipeline for analysis of national and regional trends in cases, tetsing and vaccinations.
 
-<img src="./docs/img/dag-preview.png" alt="query-tool" style="height:350px; padding:10px"/><img src="./docs/img/metabase-dashboard.png" alt="query-tool" style="height:350px;padding:10px"/>
+<img src="./docs/img/dag-preview.png" alt="query-tool" style="height:330px; padding:10px"/><img src="./docs/img/metabase-dashboard.png" alt="query-tool" style="height:330px;padding:10px"/>
 
 See [Prerequisites](#prerequisites) and [Quickstart](#quickstart) on how to deploy and run this project
 
