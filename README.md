@@ -58,7 +58,7 @@ Optionally if using [VS Code](https://code.visualstudio.com/), the project comes
     - Within the root folder rename ``.env-example`` to ``.env``
 1. Start the containers
     - Ensure docker is running (bottom left corner of docker desktop check for ``Engine runnning``)
-    - Open a terminal/command prompt and navigate to the main folder of the repository. If on windows right click in the folder and select ``Open in Termianl``.  
+    - Open a terminal/command prompt and navigate to the main folder of the repository. If on windows you may be able to ``shift + right click`` in the folder and select ``Open in Termianl`` or ``Open Powershell window here``.  
         <img src="./docs/img/command-prompt.png" alt="command-prompt" style="width:500px;"/>
 
     - inside the terminal type ``docker compose up`` and the containers should start to build and run  
