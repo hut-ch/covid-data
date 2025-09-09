@@ -1,6 +1,8 @@
 # Covid Data
 This project uses [EU](https://www.ecdc.europa.eu/en/covid-19/data) and [UK](https://ukhsa-dashboard.data.gov.uk/covid-19-archive-data-download) COVID-19 archived datasets to buld and ETL pipeline for analysis of national and regional trends in cases, tetsing and vaccinations.
 
+<img src="./docs/img/dag-preview.png" alt="query-tool" style="height:350px; padding:10px"/><img src="./docs/img/metabase-dashboard.png" alt="query-tool" style="height:350px;padding:10px"/>
+
 See [Prerequisites](#prerequisites) and [Quickstart](#quickstart) on how to deploy and run this project
 
 ## Project Goals
@@ -12,8 +14,8 @@ See [Prerequisites](#prerequisites) and [Quickstart](#quickstart) on how to depl
 ### ``TODO:``
   - Complete remaining EU pipeline (subnational cases, national age grouping, viru variant)
   - Design and implement UK pipeline
-  - Build analysis in metabase
   - Improve pgadmin server config to accept environment variable substitution
+  - Create more detailed analysis dashboards
   - Configure additional docker compose to split out airflow into separate apps rather that use standalone command
   - Documentaition
 
@@ -77,15 +79,20 @@ Optionally if using [VS Code](https://code.visualstudio.com/), the project comes
     - You can view the ``logs`` of each ``task`` to see what each is performing
 1. Query processed data using PGAdmin
     - Navigate to http://localhost:54002 and login with below credentials
-    - Username: ``admin@admin.com``
+    - Username: ``pgadmin@hut-ch.com``
     - Password:``pgadminpw``  
         <img src="./docs/img/pg-admin.png" alt="pg-admin" style="width:500px;"/>
       
-    - Click on servers and enter the follwing password for ther connection that has been preconfigured
+    - Click on servers and enter the follwing password for the connection that has been preconfigured
     - Password: ``covidpw``  
         <img src="./docs/img/db-pw-prompt.png" alt="db-pw-prompt" style="width:500px;"/>
       
     - Expand the covid schema, right click and select ``Query Tool`` or click ``Alt + Shift + Q`` to bring up the query window to query the processed data.  
         <img src="./docs/img/query-tool.png" alt="query-tool" style="width:500px;"/>
-1. View Analysis
-    - ``TODO:`` create analysis using Metabase
+1. View Basic Analysis in Metabase
+    - Navigate to http://localhost:54004 and login with below credentials
+    - Username:``covid-data@hut-ch.com``  
+    - Password: ``metabasepw1``  
+        <img src="./docs/img/metabase-login.png" alt="query-tool" style="width:500px;"/>
+    - From the left menu brose the collections and models for a few basic visualisations  
+    - Start Visualising the Data yourself. See how to use Metabase for tutorials

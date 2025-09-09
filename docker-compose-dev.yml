@@ -15,7 +15,7 @@ services:
     volumes:
       - ./.db:/var/lib/postgresql/data
       - ./config/init-database.sh:/docker-entrypoint-initdb.d/init-database.sh
-      - ./config/metabase_db.dmp:/backup/metabase_db.dmp
+      - ./config/metabase_db_backup.sql:/backup/metabase_db_backup.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -70,7 +70,7 @@ services:
     container_name: metabase
     hostname: metabase
     ports:
-      - 53004:3000
+      - "${METABASE_PORT}:3000"
     environment:
       MB_DB_TYPE: postgres
       MB_DB_DBNAME: ${METABASE_DB}
