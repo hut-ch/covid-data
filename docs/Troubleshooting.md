@@ -5,11 +5,11 @@ If you have issues getting the container to run check the postgres container log
 
 ``/usr/local/bin/docker-entrypoint.sh: line ...: /docker-entrypoint-initdb.d/init-database.sh: cannot execute: required file not found``
 
-This appears to happensometrhing =on windows where the line feed wil be change from the unix ``LF`` to Windows ``CRLF`` which cause in init script to not be detected correctly.
+This appears to happen occationally on windows where the line feed wil be change from the unix ``LF`` to Windows ``CRLF`` which cause in init script to not be detected correctly.
 
 Steps to resolve
-- Open /config/init-database.sh in a text editor (VS Code or Notepad++ will work) and check the line feed character it should be ``LF`` but can sometome get update to ``CRLF``
-- In both VS Code and Notepad++ check in the bottom right and look for either ``CRLF`` or ``LF`` if you click it you will be prometed to select a new value.  
+- Open /config/init-database.sh in a text editor (VS Code or Notepad++ will work) and check the line feed character it should be ``LF`` but can sometimes get updated to ``CRLF``
+- In both VS Code and Notepad++ check in the bottom right and look for either ``CRLF`` or ``LF`` if you click it you will be prompted to select a new value.  
 ![notpad++](/docs/img/line-feed-issue.png)
 - Ensure it is set to ``LF`` and save the file.
 - You will also need to delete the ``.db`` folder to re-initialise the database
@@ -17,3 +17,11 @@ Steps to resolve
 
 
 ## Resetting the Project
+
+1. Stop the container in Docker Desktop
+2. Open the project folder
+3. Delete the following folders (if they exist)
+   - ``data``
+   - ``.db``
+   - ``.airflow``
+4. Restart the container
