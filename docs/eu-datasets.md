@@ -32,7 +32,7 @@ Data dictionary - [vaccine-tracker.pdf](./eu-docs/vaccine-tracker.pdf)
 
 
 ## Datasets Not Yet Included
-The below datasets have been extracted but have not yet been encorporated into the ETL pipeline
+The below datasets have been extracted but have not yet been incorporated into the ETL pipeline
 
 ### Age Cases National
 Contains information on the 14-day notification rate of newly reported COVID-19 cases per 100 000 population by age group, week and country. Each row contains the corresponding data for a certain week and country. The file is updated weekly. You may use the data in line with ECDC’s copyright policy. [[source]](https://www.ecdc.europa.eu/en/publications-data/covid-19-data-14-day-age-notification-rate-new-cases)
@@ -57,7 +57,7 @@ Data dictionary - [hospital-icu-admission-rates.pdf](./eu-docs/hospital-icu-admi
 Contains information on the 14-day notification rate of new cases per 100 000 inhabitants for COVID-19 by day/week and subnational region up to week 36, 2022. Each row contains the corresponding data for a certain day and per subnational region.
 
 Please note that daily data on cases per subnational region are not available for all countries. Weekly data on new cases per subnational region for all EU/EEA countries up to week 36, 2022, can be found at 'Download data on the weekly subnational 14-day notification rate of new COVID-19 cases'. There may be differences between the rates shown in these two datasets since they are based on different sources of data. [[source daily]](https://www.ecdc.europa.eu/en/publications-data/subnational-14-day-notification-rate-covid-19)
-[[source weeky]](https://www.ecdc.europa.eu/en/publications-data/weekly-subnational-14-day-notification-rate-covid-19)
+[[source weekly]](https://www.ecdc.europa.eu/en/publications-data/weekly-subnational-14-day-notification-rate-covid-19)
 
 Data dictionary - [subnational-daily-data.pdf](./eu-docs/subnational-daily-data.pdf)
 Data dictionary - [subnational-weekly-data.pdf](./eu-docs/subnational-weekly-data.pdf)
@@ -70,7 +70,7 @@ Source: The figures displayed for weekly testing rate and weekly test positivity
 Data dictionary - [testing-data.pdf](./eu-docs/testing-data.pdf)
 
 ### Virus Variants
-Ccontains information about the volume of COVID-19 sequencing, the number and percentage distribution of variants of concern (VOC) by week and country. Each row contains the corresponding data for a country, variant and week (the data are in long format). The file is updated weekly. You may use the data in line with ECDC’s copyright policy and with GISAID’s data usage policy. We gratefully acknowledge both the originating and submitting laboratories for the sequence data in GISAID EpiCoV on which these outputs are partially based.
+Contains information about the volume of COVID-19 sequencing, the number and percentage distribution of variants of concern (VOC) by week and country. Each row contains the corresponding data for a country, variant and week (the data are in long format). The file is updated weekly. You may use the data in line with ECDC’s copyright policy and with GISAID’s data usage policy. We gratefully acknowledge both the originating and submitting laboratories for the sequence data in GISAID EpiCoV on which these outputs are partially based.
 
 Available data on the volume of COVID-19 sequencing, the number and percentage distribution of VOC for each country, week and variant submitted since 2020-W40 to the GISAID EpiCoV database (https://www.gisaid.org/) and TESSy (as either case-based or aggregate data) are displayed. [[source]](https://www.ecdc.europa.eu/en/publications-data/data-virus-variants-covid-19-eueea)
 
