@@ -39,7 +39,7 @@ See [Prerequisites](#prerequisites) and [Quickstart](#quickstart) on how to depl
 1. Customisation
     - [Environment Variables](/docs/environment-variables.md)
     - PG Admin
-1. [Troubleshooting](/docs/troubleshooting.md)
+1. [Troubleshooting](/docs/Troubleshooting.md)
 
 ---
 
