@@ -1,5 +1,5 @@
 # Covid Data
-This project uses [EU](https://www.ecdc.europa.eu/en/covid-19/data) and [UK](https://ukhsa-dashboard.data.gov.uk/covid-19-archive-data-download) COVID-19 archived datasets to buld and ETL pipeline for analysis of national and regional trends in cases, tetsing and vaccinations.
+This project uses [EU](https://www.ecdc.europa.eu/en/covid-19/data) and [UK](https://ukhsa-dashboard.data.gov.uk/covid-19-archive-data-download) COVID-19 archived datasets to build an ETL pipeline for analysis of national and regional trends in cases, testing and vaccinations.
 
 <img src="./docs/img/dag-preview.png" alt="query-tool" style="height:330px; padding:10px"/><img src="./docs/img/metabase-dashboard.png" alt="query-tool" style="height:330px;padding:10px"/>
 
@@ -8,16 +8,16 @@ See [Prerequisites](#prerequisites) and [Quickstart](#quickstart) on how to depl
 ## Project Goals
  - Create an full end-to-end ETL pipeline in Python
  - Gain a practical understanding of Apache Airflow for task orchestration
- - Gain experience in containeriastion, both for devlepment and deplpoyment
+ - Gain experience in containerisation, both for development and deployment
  - Additional: investigate Metabase for visual analysis
 
 ### ``TODO:``
-  - Complete remaining EU pipeline (subnational cases, national age grouping, viru variant)
+  - Complete remaining EU pipeline (sub-national cases, national age grouping, virus variants)
   - Design and implement UK pipeline
   - Improve pgadmin server config to accept environment variable substitution
   - Create more detailed analysis dashboards
   - Configure additional docker compose to split out airflow into separate apps rather that use standalone command
-  - Documentaition
+  - Documentation
 
 ---
 
@@ -36,7 +36,7 @@ See [Prerequisites](#prerequisites) and [Quickstart](#quickstart) on how to depl
 1. ETL Pipeline
     - [EU](/docs/eu-pipeline.md)
     - [UK](/docs/uk-pipeline.md)
-1. Cusomisiation
+1. Customisation
     - [Environment Variables](/docs/environment-variables.md)
     - PG Admin
 1. [Troubleshooting](/docs/troubleshooting.md)
@@ -44,9 +44,9 @@ See [Prerequisites](#prerequisites) and [Quickstart](#quickstart) on how to depl
 ---
 
 # Prerequisites
-This project uses a set of docker containers in order to oarchesteate and store the data. Therefore is not already installed it is recommended to use [Docker Desktop](https://www.docker.com/products/docker-desktop/) to run and mange the containers.
+This project uses a set of docker containers in order to orchestrate and store the data. Therefore, if not already installed it is recommended to use [Docker Desktop](https://www.docker.com/products/docker-desktop/) to run and manage the containers.
 
-Optionally if using [VS Code](https://code.visualstudio.com/), the project comes with a configured dev container that can be started from within VS Code. Ensure the [Remote Developement](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack) extension is installed thenyou can [clone the repository](https://learn.microsoft.com/en-us/azure/developer/javascript/how-to/with-visual-studio-code/clone-github-repository?tabs=activity-bar) and start the container.
+Optionally if using [VS Code](https://code.visualstudio.com/), the project comes with a configured dev container that can be started from within VS Code. Ensure the [Remote Development](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack) extension is installed then you can [clone the repository](https://learn.microsoft.com/en-us/azure/developer/javascript/how-to/with-visual-studio-code/clone-github-repository?tabs=activity-bar) and start the container.
 
 ---
 
@@ -57,8 +57,8 @@ Optionally if using [VS Code](https://code.visualstudio.com/), the project comes
     - Navigate to the location you have cloned/downloaded the repository
     - Within the root folder rename ``.env-example`` to ``.env``
 1. Start the containers
-    - Ensure docker is running (bottom left corner of docker desktop check for ``Engine runnning``)
-    - Open a terminal/command prompt and navigate to the main folder of the repository. If on windows you may be able to ``shift + right click`` in the folder and select ``Open in Termianl`` or ``Open Powershell window here``.  
+    - Ensure docker is running (bottom left corner of docker desktop check for ``Engine running``)
+    - Open a terminal/command prompt and navigate to the main folder of the repository. If on windows you may be able to ``shift + right click`` in the folder and select ``Open in Terminal`` or ``Open Powershell window here``.  
         <img src="./docs/img/command-prompt.png" alt="command-prompt" style="width:500px;"/>
 
     - inside the terminal type ``docker compose up`` and the containers should start to build and run  
@@ -73,7 +73,7 @@ Optionally if using [VS Code](https://code.visualstudio.com/), the project comes
     - Select ``Dags`` on the left
     - Click ``covid-pipeline-eu``
     - Click ``Trigger`` in the top right, the ``Trigger`` again in the popup
-    - You can monitor the progress of the pipeline by clicking ``Runs`` and selecing the running instance  
+    - You can monitor the progress of the pipeline by clicking ``Runs`` and selecting the running instance  
         <img src="./docs/img/running-dag.png" alt="running-dag" style="width:500px;"/>
       
     - You can view the ``logs`` of each ``task`` to see what each is performing
@@ -83,7 +83,7 @@ Optionally if using [VS Code](https://code.visualstudio.com/), the project comes
     - Password:``pgadminpw``  
         <img src="./docs/img/pg-admin.png" alt="pg-admin" style="width:500px;"/>
       
-    - Click on servers and enter the follwing password for the connection that has been preconfigured
+    - Click on servers and enter the following password for the connection that has been pre-configured
     - Password: ``covidpw``  
         <img src="./docs/img/db-pw-prompt.png" alt="db-pw-prompt" style="width:500px;"/>
       
@@ -94,5 +94,5 @@ Optionally if using [VS Code](https://code.visualstudio.com/), the project comes
     - Username:``covid-data@hut-ch.com``  
     - Password: ``metabasepw1``  
         <img src="./docs/img/metabase-login.png" alt="query-tool" style="width:500px;"/>
-    - From the left menu brose the collections and models for a few basic visualisations  
+    - From the left menu browse the collections and models for a few basic visualisations  
     - Start Visualising the Data yourself. See how to use Metabase for tutorials
