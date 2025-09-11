@@ -1,13 +1,13 @@
 # Apache Airflow
 
-Apache Airflow is being used as the Data Orchestration tool for this project, for more information oin airflow see [Apached Airflow 3.0.5](https://airflow.apache.org/docs/apache-airflow/3.0.5/index.html).
+Apache Airflow is being used as the Data Orchestration tool for this project, for more information oin airflow see [Apache Airflow 3.0.5](https://airflow.apache.org/docs/apache-airflow/3.0.5/index.html).
 
-The Airflow instance configured as part of this project can be accessed by default form http://localhost:54003. the port can be changed by updateing the ``AIRFLOW_WEB_PORT`` variable in the ``.env`` file. For more infprmation on configuraing environement variables see [environment-variables](environment-variables.md)
+The Airflow instance configured as part of this project can be accessed by default form http://localhost:54003. the port can be changed by updating the ``AIRFLOW_WEB_PORT`` variable in the ``.env`` file. For more information on configuring environment variables see [environment-variables](environment-variables.md)
 
 ![airflow-home](../img/airflow-home.png)
 
 ## Configuration
-For simplicity the container has been configures to run in standalone mode
+For simplicity the container has been configured to run in standalone mode
 
 
 ## DAGS
